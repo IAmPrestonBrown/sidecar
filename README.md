@@ -134,8 +134,10 @@ uv run sidecar import-call <project> ~/Documents/Sidecar/recordings/<session>
 Sidecar sends through your Gmail account using your own Google Cloud OAuth client:
 
 1. In the Google Cloud console, create a project, enable the Gmail API, and set up
-   the OAuth consent screen (External, in production; the "unverified app" notice
-   is expected for personal use).
+   the OAuth consent screen as External. The simplest setup leaves it in Testing
+   and adds your address as a test user; Google then expires the sign-in every
+   seven days and Sidecar asks you to connect again. Publishing to production
+   avoids that but needs a homepage and privacy policy URL.
 2. Create an OAuth client of type **Desktop app** and download its JSON file.
 3. Save it as `~/.config/sidecar/google_client.json`, then choose **Connect Gmail**
    in Settings.
