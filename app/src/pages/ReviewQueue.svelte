@@ -8,6 +8,13 @@
   import { app } from '../lib/state.svelte'
   import type { QueueItem, SendingStatus } from '../lib/types'
 
+  const KIND: Record<string, string> = {
+    initial: 'First email',
+    follow_up: 'Follow-up',
+    final: 'Final note',
+    response: 'Reply',
+  }
+
   interface ApproveResult {
     approved: string[]
     refused: Record<string, string>
@@ -214,7 +221,10 @@
                   {#if fails(item)}<span class="flag fail">{fails(item)} failed</span>
                   {:else if unverified(item)}<span class="flag warn">Unverified</span>{/if}
                 </span>
-                <span class="sub">{item.organization?.name ?? ''}</span>
+                <span class="sub"
+                  >{item.kind === 'initial' ? '' : `${KIND[item.kind]} · `}{item.organization?.name ??
+                    ''}</span
+                >
               </button>
             </div>
           {/each}

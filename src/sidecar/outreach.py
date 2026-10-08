@@ -100,9 +100,11 @@ def run_checks(project: Project, message: Message) -> list[Check]:
         else Check("No em dashes", "pass")
     )
 
+    response = message.kind == "response"
     banned = [p for p in project.meta.banned_phrases if p and _phrase_found(p, text)]
+    # In a conversation the person may have asked about these, so it is only a note.
     checks.append(
-        Check("No blocked phrases", "fail", ", ".join(banned))
+        Check("No blocked phrases", "warn" if response else "fail", ", ".join(banned))
         if banned
         else Check("No blocked phrases", "pass")
     )
@@ -114,10 +116,11 @@ def run_checks(project: Project, message: Message) -> list[Check]:
         else Check("Template filled in", "pass")
     )
 
-    seconds = reading_seconds(message.body)
-    limit = project.meta.email.max_reading_seconds
-    level = "pass" if seconds <= limit else "warn"
-    checks.append(Check("Reading time", level, f"{seconds:.0f} seconds"))
+    if not response:
+        seconds = reading_seconds(message.body)
+        limit = project.meta.email.max_reading_seconds
+        level = "pass" if seconds <= limit else "warn"
+        checks.append(Check("Reading time", level, f"{seconds:.0f} seconds"))
 
     if message.kind == "initial" and project.meta.email.body_template:
         base = fill(project.meta.email.body_template, person, org)
@@ -133,7 +136,7 @@ def run_checks(project: Project, message: Message) -> list[Check]:
 
     if not person.email:
         checks.append(Check("Email address", "fail", "No email address"))
-    elif person.email_confidence == "verified_direct":
+    elif person.email_confidence == "verified_direct" or response:
         checks.append(Check("Email address", "pass", person.email))
     else:
         reason = {"generic": "Generic inbox", "inferred_direct": "Inferred, not verified"}.get(
@@ -347,6 +350,30 @@ TRIAGE_ACTIONS = {
     "do_not_contact": "",
     "unresponsive": "",
 }
+
+
+def draft_response(project: Project, reply_id: str, body: str) -> Message:
+    """Draft an answer to a reply, in the same Gmail thread. It waits for approval."""
+    reply = project.get("messages", reply_id)
+    if reply.kind != "reply":
+        raise StoreError("Only replies can be answered")
+    if not body.strip():
+        raise StoreError("The response is empty")
+    subject = reply.subject or "Re:"
+    message = project.create(
+        "messages",
+        {
+            "person_id": reply.person_id,
+            "kind": "response",
+            "subject": subject if subject.lower().startswith("re:") else f"Re: {subject}",
+            "body": body.strip(),
+            "status": "draft",
+            "gmail_thread_id": reply.gmail_thread_id,
+            "in_reply_to": reply.rfc_message_id,
+        },
+    )
+    assert isinstance(message, Message)
+    return message
 
 
 def triage_reply(project: Project, reply_id: str, stage: str = "") -> Message:

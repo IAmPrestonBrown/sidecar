@@ -159,7 +159,7 @@ export interface Check {
 export interface Message extends Rec {
   person_id: string
   wave_id: string
-  kind: 'initial' | 'follow_up' | 'final' | 'reply'
+  kind: 'initial' | 'follow_up' | 'final' | 'reply' | 'response'
   subject: string
   body: string
   status: 'draft' | 'approved' | 'scheduled' | 'sent' | 'failed' | 'skipped' | 'received'

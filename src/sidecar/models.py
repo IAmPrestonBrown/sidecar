@@ -42,7 +42,8 @@ EvidenceType = Literal[
 EvidenceBasis = Literal["statement", "observed", "artifact", "interpretation"]
 Stance = Literal["supports", "contradicts", "mixed"]
 ReviewStatus = Literal["proposed", "accepted", "rejected"]
-MessageKind = Literal["initial", "follow_up", "final", "reply"]
+# "reply" is a message received from the person; "response" is our answer to one.
+MessageKind = Literal["initial", "follow_up", "final", "reply", "response"]
 MessageStatus = Literal["draft", "approved", "scheduled", "sent", "failed", "skipped", "received"]
 
 STRONG_TYPES = {"behavior", "incident"}
@@ -182,6 +183,8 @@ class Message(Record):
     gmail_thread_id: str = ""
     # RFC 5322 Message-ID, used to thread follow-ups.
     rfc_message_id: str = ""
+    # Responses only: the Message-ID being answered.
+    in_reply_to: str = ""
     scheduled_for: str = ""
     sent_at: str = ""
     error: str = ""

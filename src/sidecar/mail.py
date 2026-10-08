@@ -21,6 +21,8 @@ from sidecar.store import Project, Workspace
 
 log = logging.getLogger(__name__)
 
+# Outreach that follows the daily cap and spacing; answers to replies do not.
+COLD = {"initial", "follow_up", "final"}
 SEND_CHECK_S = 30
 REPLY_CHECK_S = 120
 STOP_STAGES = {
@@ -38,6 +40,7 @@ NEXT_ACTION = {
     "initial": "Follow up if no reply",
     "follow_up": "Send the final note if no reply",
     "final": "No reply after the final note. Mark unresponsive if nothing comes.",
+    "response": "Wait for their answer",
 }
 
 
@@ -91,7 +94,7 @@ class Mailer:
             1
             for m in project.all("messages")
             if m.status == "sent"
-            and m.kind != "reply"
+            and m.kind in COLD
             and m.sent_at[:10] == today
             and _parse(m.sent_at) is not None
         )
@@ -102,7 +105,7 @@ class Mailer:
         times = [
             t
             for m in project.all("messages")
-            if m.status == "sent" and (t := _parse(m.sent_at)) is not None
+            if m.status == "sent" and m.kind in COLD and (t := _parse(m.sent_at)) is not None
         ]
         if not times:
             return None
@@ -162,6 +165,8 @@ class Mailer:
             return "Marked do not contact or declined"
         if not person.email:
             return "No email address"
+        if message.kind == "response":
+            return ""
         if outreach.has_reply(project, person.id):
             return "This person has replied"
         if message.kind == "initial":
@@ -178,9 +183,33 @@ class Mailer:
         """Send the oldest approved message that is in its window, if sending is allowed."""
         with self.lock:
             now = self.clock()
+            if (
+                not project.meta.sending.active
+                or not self.gmail.status()["connected"]
+                or self.call_live()
+            ):
+                return None
+            # Answers to replies go first and skip the cap, spacing, and window.
+            for message in self.queue(project):
+                if message.kind != "response":
+                    continue
+                person = project.get("people", message.person_id)
+                assert isinstance(person, Person)
+                reason = self.recheck(project, message)
+                if reason:
+                    project.update(
+                        "messages",
+                        message.id,
+                        {"status": "skipped", "error": reason},
+                        actor="mailer",
+                    )
+                    continue
+                return self._send(project, message, person, now)
             if self.blocked(project, now):
                 return None
             for message in self.queue(project):
+                if message.kind == "response":
+                    continue
                 person = project.get("people", message.person_id)
                 assert isinstance(person, Person)
                 reason = self.recheck(project, message)
@@ -202,7 +231,13 @@ class Mailer:
         body = message.body
         if email.footer_enabled and (email.postal_address or email.opt_out_line):
             body += "\n\n" + "\n".join(x for x in (email.postal_address, email.opt_out_line) if x)
-        previous = outreach.last_sent(project, person.id) if message.kind != "initial" else None
+        if message.kind == "response":
+            in_reply_to = message.in_reply_to
+        elif message.kind != "initial" and message.gmail_thread_id:
+            previous = outreach.last_sent(project, person.id)
+            in_reply_to = previous.rfc_message_id if previous else ""
+        else:
+            in_reply_to = ""
         try:
             sent = self.gmail.send(
                 person.email,
@@ -210,7 +245,7 @@ class Mailer:
                 body,
                 email.sender_name,
                 thread_id=message.gmail_thread_id,
-                in_reply_to=previous.rfc_message_id if previous and message.gmail_thread_id else "",
+                in_reply_to=in_reply_to,
             )
         except NotConnectedError as exc:
             self.last_error = str(exc)
@@ -237,25 +272,26 @@ class Mailer:
             },
             actor="mailer",
         )
-        due = outreach.add_business_days(now.date(), FOLLOW_UP_GAP[message.kind])
-        project.update(
-            "people",
-            person.id,
-            {
+        if message.kind == "response":
+            # A conversation is underway, so the stage stays as the user set it.
+            fields = {"next_action": NEXT_ACTION["response"], "next_action_due": ""}
+        else:
+            due = outreach.add_business_days(now.date(), FOLLOW_UP_GAP[message.kind])
+            fields = {
                 "stage": "sent",
                 "next_action": NEXT_ACTION[message.kind],
                 "next_action_due": due.isoformat(),
-            },
-            actor="mailer",
-        )
+            }
+        project.update("people", person.id, fields, actor="mailer")
         if person.organization_id:
             project.update(
                 "organizations", person.organization_id, {"already_contacted": True}, actor="mailer"
             )
-        gap = self.rng.uniform(
-            project.meta.sending.min_gap_minutes, project.meta.sending.max_gap_minutes
-        )
-        self.next_at[project.slug] = now + timedelta(minutes=gap)
+        if message.kind != "response":
+            gap = self.rng.uniform(
+                project.meta.sending.min_gap_minutes, project.meta.sending.max_gap_minutes
+            )
+            self.next_at[project.slug] = now + timedelta(minutes=gap)
         assert isinstance(updated, Message)
         return updated
 

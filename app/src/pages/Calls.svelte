@@ -82,7 +82,6 @@
       confirmEnd = false
     }
   }
-
 </script>
 
 <Toolbar title="Calls" subtitle={`${calls.length} recorded`}>

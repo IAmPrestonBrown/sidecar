@@ -67,6 +67,11 @@ class TriageRequest(BaseModel):
     stage: str = ""
 
 
+class RespondRequest(BaseModel):
+    body: str
+    stage: str = ""
+
+
 class SessionRequest(BaseModel):
     path: str
     person_id: str = ""
@@ -338,6 +343,13 @@ def create_app(
     @app.post("/projects/{slug}/replies/{reply_id}/triage", dependencies=guarded)
     def triage(slug: str, reply_id: str, body: TriageRequest) -> dict:
         return outreach.triage_reply(project(slug), reply_id, body.stage).model_dump(mode="json")
+
+    @app.post("/projects/{slug}/replies/{reply_id}/respond", dependencies=guarded)
+    def respond(slug: str, reply_id: str, body: RespondRequest) -> dict:
+        proj = project(slug)
+        draft = outreach.draft_response(proj, reply_id, body.body)
+        outreach.triage_reply(proj, reply_id, body.stage)
+        return draft.model_dump(mode="json")
 
     @app.post("/gmail/check", dependencies=guarded)
     def check_replies() -> dict:

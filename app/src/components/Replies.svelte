@@ -1,8 +1,9 @@
 <script lang="ts">
   import { get, post } from '../lib/api'
+  import { autosize } from '../lib/autosize'
   import { shortDate } from '../lib/labels'
   import { app } from '../lib/state.svelte'
-  import type { Message, Person } from '../lib/types'
+  import type { Message, Person, ProjectMeta } from '../lib/types'
 
   const STAGES: [string, string][] = [
     ['', 'Keep the current stage'],
@@ -17,12 +18,20 @@
   let replies = $state<Message[]>([])
   let people = $state<Record<string, Person>>({})
   let choice = $state<Record<string, string>>({})
+  let drafts = $state<Record<string, string>>({})
+  let writing = $state<Record<string, boolean>>({})
+  let sender = $state('')
   let error = $state('')
 
   $effect(() => {
     void app.version
-    Promise.all([get<Message[]>(`${app.base}/c/messages`), get<Person[]>(`${app.base}/c/people`)])
-      .then(([m, p]) => {
+    Promise.all([
+      get<Message[]>(`${app.base}/c/messages`),
+      get<Person[]>(`${app.base}/c/people`),
+      get<ProjectMeta>(app.base),
+    ])
+      .then(([m, p, meta]) => {
+        sender = meta.email.sender_name
         replies = m
           .filter((x) => x.kind === 'reply' && !x.triaged)
           .sort((a, b) => a.received_at.localeCompare(b.received_at))
@@ -30,6 +39,25 @@
       })
       .catch((e) => (error = String(e)))
   })
+
+  function startWriting(reply: Message) {
+    const first = people[reply.person_id]?.first_name || ''
+    drafts[reply.id] ??= `Hi ${first},\n\n\n\nThanks,\n${sender}`
+    writing[reply.id] = true
+  }
+
+  async function respond(reply: Message) {
+    error = ''
+    try {
+      await post(`${app.base}/replies/${reply.id}/respond`, {
+        body: drafts[reply.id],
+        stage: choice[reply.id] ?? '',
+      })
+      app.changed()
+    } catch (e) {
+      error = String(e)
+    }
+  }
 
   async function done(reply: Message) {
     error = ''
@@ -59,13 +87,29 @@
         </header>
         <div class="muted selectable">{r.from_address} · {r.subject}</div>
         <p class="body selectable">{r.body}</p>
+        {#if writing[r.id]}
+          <label class="sr-only" for={`resp-${r.id}`}>Your response</label>
+          <textarea
+            id={`resp-${r.id}`}
+            class="field response"
+            rows="6"
+            bind:value={drafts[r.id]}
+            use:autosize={drafts[r.id]}></textarea>
+        {/if}
         <footer>
           <label class="sr-only" for={`stage-${r.id}`}>Move to stage</label>
           <select id={`stage-${r.id}`} class="select" bind:value={choice[r.id]}>
             {#each STAGES as [v, l] (v)}<option value={v}>{l}</option>{/each}
           </select>
-          <button class="btn primary" onclick={() => done(r)}>Done</button>
-          <span class="muted">Follow-ups to this person stopped when the reply arrived.</span>
+          {#if writing[r.id]}
+            <button class="btn" onclick={() => (writing[r.id] = false)}>Cancel</button>
+            <button class="btn primary" disabled={!drafts[r.id]?.trim()} onclick={() => respond(r)}
+              >Add to review queue</button
+            >
+          {:else}
+            <button class="btn" onclick={() => done(r)}>Done</button>
+            {#if !r.bounce}<button class="btn primary" onclick={() => startWriting(r)}>Reply…</button>{/if}
+          {/if}
         </footer>
       </article>
     {/each}
@@ -100,6 +144,11 @@
   }
   .when {
     margin-left: auto;
+  }
+  .response {
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: hidden;
   }
   .body {
     white-space: pre-wrap;

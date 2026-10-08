@@ -385,3 +385,33 @@ def test_follow_up_check_flags_reply_and_outside_thread(setup) -> None:
     project.create("messages", {"person_id": person.id, "kind": "reply", "status": "received"})
     checks = {c.name: c for c in outreach.run_checks(project, follow)}
     assert checks["No reply yet"].level == "fail"
+
+
+def test_response_goes_out_promptly_in_thread(setup) -> None:
+    _, project, gmail, mailer, clock = setup
+    ana, _ = approved_for(project)
+    mailer.send_next(project)
+    gmail.incoming = [
+        NewMessage(
+            "r1", "t1", "Ana <ana@example.com>", "Re: hello", "", "<r1@x>", "When?", False, False
+        )
+    ]
+    mailer.check_replies()
+    reply = next(m for m in project.all("messages") if m.kind == "reply")
+    outreach.triage_reply(project, reply.id, "scheduling")
+    draft = outreach.draft_response(project, reply.id, "Hi Ana,\n\nTuesday at 10 works.\n\nAlex")
+    assert draft.subject == "Re: hello"
+    checks = {c.name: c for c in outreach.run_checks(project, draft)}
+    assert "Reading time" not in checks
+    assert outreach.approve(project, [draft.id])["approved"] == [draft.id]
+    # Immediately after the first send, and after hours: a response still goes out.
+    clock["now"] = NOW.replace(hour=21)
+    sent = mailer.send_next(project)
+    assert sent is not None
+    assert sent.id == draft.id
+    assert gmail.sent[-1]["thread_id"] == "t1"
+    assert gmail.sent[-1]["in_reply_to"] == "<r1@x>"
+    person = project.get("people", ana.id)
+    assert person.stage == "scheduling"
+    assert person.next_action == "Wait for their answer"
+    assert mailer.sent_today(project, clock["now"]) == 1
