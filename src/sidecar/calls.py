@@ -110,6 +110,11 @@ class CallRunner:
         self.lock = threading.Lock()
         self.call: ActiveCall | None = None
 
+    @property
+    def live(self) -> bool:
+        with self.lock:
+            return self.call is not None and self.call.state in ("starting", "ready", "ending")
+
     def status(self) -> dict | None:
         with self.lock:
             return self.call.as_dict() if self.call else None

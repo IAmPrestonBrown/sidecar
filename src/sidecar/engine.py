@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -12,6 +13,9 @@ import uvicorn
 
 from sidecar.api import create_app
 from sidecar.backup import backup_workspace
+from sidecar.calls import CallRunner
+from sidecar.gmail import Gmail
+from sidecar.mail import Mailer
 from sidecar.store import DEFAULT_ROOT, Workspace
 
 log = logging.getLogger("sidecar.engine")
@@ -66,7 +70,12 @@ def main() -> None:
 
     root = Path(args.root)
     threading.Thread(target=run_backups, args=(root,), daemon=True).start()
-    app = create_app(Workspace(root), token)
+    workspace = Workspace(root)
+    calls = CallRunner()
+    gmail = Gmail(opener=lambda url: subprocess.run(["open", url], check=False, timeout=10))
+    mailer = Mailer(workspace, gmail, call_live=lambda: calls.live)
+    threading.Thread(target=mailer.run, args=(threading.Event(),), daemon=True).start()
+    app = create_app(workspace, token, calls, gmail, mailer)
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
 
 

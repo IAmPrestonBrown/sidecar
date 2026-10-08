@@ -106,6 +106,7 @@ export interface ProjectMeta {
   coach: { activity: string; keyterms: string[] }
   email: EmailSettings
   sending: {
+    active: boolean
     daily_cap: number
     window_start: string
     window_end: string
@@ -130,6 +131,7 @@ export interface Overview {
   evidence_to_review: number
   evidence_accepted: number
   drafts_to_review: number
+  replies_to_review: number
   sent: number
   prospects_to_review: number
   leads_open: Person[]
@@ -160,8 +162,16 @@ export interface Message extends Rec {
   kind: 'initial' | 'follow_up' | 'final' | 'reply'
   subject: string
   body: string
-  status: 'draft' | 'approved' | 'scheduled' | 'sent' | 'failed' | 'skipped'
+  status: 'draft' | 'approved' | 'scheduled' | 'sent' | 'failed' | 'skipped' | 'received'
   checks: Check[]
+  gmail_thread_id: string
+  sent_at: string
+  error: string
+  from_address: string
+  received_at: string
+  auto_reply: boolean
+  bounce: boolean
+  triaged: boolean
 }
 
 export interface QueueItem extends Message {
@@ -240,4 +250,23 @@ export interface ActiveCall {
   call_id: string
   error: string
   output: string[]
+}
+
+export interface GmailStatus {
+  configured: boolean
+  client_file: string
+  connected: boolean
+  email: string
+  connecting: boolean
+}
+
+export interface SendingStatus {
+  active: boolean
+  connected: boolean
+  sent_today: number
+  daily_cap: number
+  waiting: number
+  blocked: string
+  next_after: string
+  last_error: string
 }

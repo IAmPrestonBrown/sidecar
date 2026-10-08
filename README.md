@@ -61,8 +61,9 @@ can read, copy, or hand to another tool.
 
 Sidecar is early. Working today: projects, hypotheses, evidence review, people,
 organizations, CSV import, drafting and approving emails, interview scheduling notes,
-briefs, export, backups, and calls with the interview coach inside the app. In
-progress: sending approved email through Gmail, and prospect research. Until Gmail is
+briefs, export, backups, calls with the interview coach inside the app, and
+sending approved email through Gmail with reply tracking. In progress: prospect
+research. Until Gmail is
 connected, approved emails wait in the queue. The full plan is in [docs/spec.md](docs/spec.md).
 
 ## Requirements
@@ -128,11 +129,28 @@ Inbox for review:
 uv run sidecar import-call <project> ~/Documents/Sidecar/recordings/<session>
 ```
 
+## Email
+
+Sidecar sends through your Gmail account using your own Google Cloud OAuth client:
+
+1. In the Google Cloud console, create a project, enable the Gmail API, and set up
+   the OAuth consent screen (External, in production; the "unverified app" notice
+   is expected for personal use).
+2. Create an OAuth client of type **Desktop app** and download its JSON file.
+3. Save it as `~/.config/sidecar/google_client.json`, then choose **Connect Gmail**
+   in Settings.
+
+Nothing is sent until you approve it in the review queue and turn on sending for
+the project. Sends go out one at a time inside the send window and daily cap,
+pause during calls, and recheck the person first. Replies appear in the Inbox and
+stop that person's follow-ups; due follow-ups are drafted into the review queue.
+
 ## Configuration
 
 | File | Purpose |
 |---|---|
 | `~/.config/sidecar/.env` | API keys. |
+| `~/.config/sidecar/google_client.json` | Your Google OAuth client, for Gmail. The Gmail token itself is kept in the Keychain. |
 | `~/.config/sidecar/config.toml` | Coach settings: microphone, Deepgram options and keyterms, models, the brief and prompts to use, where recordings go, your transcript label, coaching activity level, prices. Start from `config.example.toml`. |
 | `examples/` | A fictional research brief and outreach brief to start from. |
 | `prompts/` | The coach's system prompt and per-mode instructions. |

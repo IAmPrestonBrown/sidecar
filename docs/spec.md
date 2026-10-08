@@ -611,7 +611,11 @@ Organizations have their own page, and interviews are recorded on each person.
 Calls start from the app: the engine runs the coach as a child process with the
 project's brief, prompts, and keyterms, the shell opens its page in a call window,
 and the session is imported when the coach exits. The call library and live call
-window from milestone 2 are in; call review is not.
+window from milestone 2 are in; call review is not. Milestone 4 and the sending
+half of milestone 5 are built: Gmail OAuth with PKCE (token in the Keychain),
+paced sending with rechecks, reply detection through the history API, reply
+triage in the Inbox, and follow-up drafts. Reply classification suggestions are
+not built; replies are triaged by hand.
 
 ## 13. Decisions
 

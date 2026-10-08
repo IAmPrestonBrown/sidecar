@@ -43,7 +43,7 @@ EvidenceBasis = Literal["statement", "observed", "artifact", "interpretation"]
 Stance = Literal["supports", "contradicts", "mixed"]
 ReviewStatus = Literal["proposed", "accepted", "rejected"]
 MessageKind = Literal["initial", "follow_up", "final", "reply"]
-MessageStatus = Literal["draft", "approved", "scheduled", "sent", "failed", "skipped"]
+MessageStatus = Literal["draft", "approved", "scheduled", "sent", "failed", "skipped", "received"]
 
 STRONG_TYPES = {"behavior", "incident"}
 
@@ -180,8 +180,17 @@ class Message(Record):
     checks: list[dict] = []
     gmail_message_id: str = ""
     gmail_thread_id: str = ""
+    # RFC 5322 Message-ID, used to thread follow-ups.
+    rfc_message_id: str = ""
     scheduled_for: str = ""
     sent_at: str = ""
+    error: str = ""
+    # Replies only.
+    from_address: str = ""
+    received_at: str = ""
+    auto_reply: bool = False
+    bounce: bool = False
+    triaged: bool = True
 
 
 class Wave(Record):
@@ -246,6 +255,8 @@ class EmailSettings(BaseModel):
 
 
 class SendingSettings(BaseModel):
+    # Approved emails go out only while this is on.
+    active: bool = False
     daily_cap: int = 30
     window_start: str = "08:00"
     window_end: str = "17:00"

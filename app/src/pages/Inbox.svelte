@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import EvidenceForm from '../components/EvidenceForm.svelte'
+  import Replies from '../components/Replies.svelte'
   import Toolbar from '../components/Toolbar.svelte'
   import { get, patch } from '../lib/api'
   import { label, mmss, shortDate } from '../lib/labels'
@@ -71,12 +72,14 @@
 
 {#if error}<div class="error-banner" style="margin: 16px 24px">{error}</div>{/if}
 
+<Replies />
+
 {#if items.length === 0}
   <div class="none">
     <p class="strong">Nothing to review.</p>
     <p class="muted">
       Evidence the coach logs during calls lands here. It counts toward a hypothesis only after you accept it.
-      Email replies and prospect suggestions will appear here too.
+      Email replies appear here too, and prospect suggestions will.
     </p>
   </div>
 {:else}

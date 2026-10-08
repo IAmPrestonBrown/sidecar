@@ -162,7 +162,24 @@ def run_checks(project: Project, message: Message) -> list[Check]:
             else Check("First email to this person", "pass")
         )
 
-    if org is not None:
+    if message.kind in ("follow_up", "final"):
+        previous = last_sent(project, person.id)
+        if previous is None:
+            checks.append(
+                Check("Earlier email sent", "fail", "Nothing has been sent to this person")
+            )
+        elif not previous.gmail_thread_id:
+            checks.append(
+                Check("Same thread", "warn", "The earlier email was sent outside Sidecar")
+            )
+        else:
+            checks.append(Check("Same thread", "pass"))
+        if has_reply(project, person.id):
+            checks.append(Check("No reply yet", "fail", "This person has replied"))
+        else:
+            checks.append(Check("No reply yet", "pass"))
+
+    if org is not None and message.kind == "initial":
         recent = datetime.now(UTC) - timedelta(days=COWORKER_GAP_DAYS)
         coworkers = []
         for m in messages:
@@ -223,6 +240,132 @@ def draft_initial(project: Project, person_id: str, wave_id: str = "") -> Messag
     return message
 
 
+def add_business_days(start: date, days: int) -> date:
+    current = start
+    while days > 0:
+        current += timedelta(days=1)
+        if current.weekday() < 5:
+            days -= 1
+    return current
+
+
+def last_sent(project: Project, person_id: str) -> Message | None:
+    sent = [
+        m
+        for m in project.all("messages")
+        if m.person_id == person_id and m.status == "sent" and m.kind != "reply"
+    ]
+    return max(sent, key=lambda m: m.sent_at or m.updated_at, default=None)
+
+
+def has_reply(project: Project, person_id: str) -> bool:
+    return any(
+        m.person_id == person_id and m.kind == "reply" and not m.bounce
+        for m in project.all("messages")
+    )
+
+
+NEXT_KIND = {"initial": "follow_up", "follow_up": "final"}
+FOLLOW_UP_STAGES = {"sent", "follow_up_due"}
+
+
+def draft_follow_up(project: Project, person_id: str) -> Message:
+    """Draft the next email in the sequence for a person who has not replied."""
+    email = ensure_templates(project)
+    previous = last_sent(project, person_id)
+    if previous is None or previous.kind not in NEXT_KIND:
+        raise StoreError("No earlier email to follow up on")
+    kind = NEXT_KIND[previous.kind]
+    template = email.follow_up_template if kind == "follow_up" else email.final_template
+    if not template:
+        raise StoreError(f"No {kind.replace('_', '-')} template. Add one in Settings.")
+    person = project.get("people", person_id)
+    assert isinstance(person, Person)
+    org = project.get("organizations", person.organization_id) if person.organization_id else None
+    first = next(
+        (m for m in project.all("messages") if m.person_id == person_id and m.kind == "initial"),
+        previous,
+    )
+    subject = first.subject or fill(email.subject_template, person, org)
+    message = project.create(
+        "messages",
+        {
+            "person_id": person.id,
+            "wave_id": previous.wave_id,
+            "kind": kind,
+            # "Re:" only when the follow-up joins the original Gmail thread.
+            "subject": subject
+            if subject.lower().startswith("re:") or not previous.gmail_thread_id
+            else f"Re: {subject}",
+            "body": fill(template, person, org),
+            "status": "draft",
+            "gmail_thread_id": previous.gmail_thread_id,
+        },
+    )
+    assert isinstance(message, Message)
+    return message
+
+
+def due_follow_ups(project: Project, today: date) -> list[Message]:
+    """Draft follow-ups that are due today for people who have not replied.
+
+    Drafts wait in the review queue like any other email.
+    """
+    pending = {
+        m.person_id
+        for m in project.all("messages")
+        if m.kind in ("follow_up", "final") and m.status in ("draft", "approved", "scheduled")
+    }
+    drafted = []
+    for person in project.all("people"):
+        if (
+            person.stage not in FOLLOW_UP_STAGES
+            or person.do_not_contact
+            or not person.next_action_due
+            or person.next_action_due > today.isoformat()
+            or person.id in pending
+            or has_reply(project, person.id)
+        ):
+            continue
+        previous = last_sent(project, person.id)
+        if previous is None or previous.kind not in NEXT_KIND:
+            continue
+        try:
+            drafted.append(draft_follow_up(project, person.id))
+        except StoreError:
+            continue
+        project.update("people", person.id, {"stage": "follow_up_due"}, actor="outreach")
+    return drafted
+
+
+TRIAGE_ACTIONS = {
+    "interested": "Agree on an interview time",
+    "scheduling": "Confirm the interview time and time zone",
+    "confirmed": "Prepare for the interview",
+    "replied": "Answer the reply",
+    "declined": "",
+    "do_not_contact": "",
+    "unresponsive": "",
+}
+
+
+def triage_reply(project: Project, reply_id: str, stage: str = "") -> Message:
+    """Mark a reply as handled, moving the person to the stage the user chose."""
+    reply = project.get("messages", reply_id)
+    if reply.kind != "reply":
+        raise StoreError("Only replies can be triaged")
+    if stage:
+        if stage not in TRIAGE_ACTIONS:
+            raise StoreError(f"Unknown stage {stage!r}")
+        fields: dict = {"stage": stage, "next_action": TRIAGE_ACTIONS[stage], "next_action_due": ""}
+        if stage == "do_not_contact":
+            fields["do_not_contact"] = True
+        project.update("people", reply.person_id, fields)
+    updated = project.update("messages", reply_id, {"triaged": True})
+    assert isinstance(updated, Message)
+    return updated
+
+
 def approve(project: Project, message_ids: list[str], confirm_inferred: bool = False) -> dict:
     """Approve drafts that pass their checks. Returns approved ids and reasons for the rest."""
     approved: list[str] = []
@@ -256,7 +399,7 @@ def skip(project: Project, message_ids: list[str]) -> list[str]:
     done = []
     for mid in message_ids:
         message = project.get("messages", mid)
-        if message.status in ("draft", "approved"):
+        if message.status in ("draft", "approved", "failed"):
             project.update("messages", mid, {"status": "skipped"})
             done.append(mid)
     return done

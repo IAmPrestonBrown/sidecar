@@ -15,7 +15,7 @@
       .catch(() => (overview = null))
   })
 
-  const inboxCount = $derived(overview ? overview.evidence_to_review : 0)
+  const inboxCount = $derived(overview ? overview.evidence_to_review + overview.replies_to_review : 0)
   const queueCount = $derived(overview ? overview.drafts_to_review : 0)
 
   const sections: { title: string; items: { page: Page; label: string; also?: Page[] }[] }[] = [

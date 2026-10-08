@@ -15,6 +15,8 @@ from pydantic import BaseModel, ValidationError
 from sidecar import __version__, csv_import, outreach, sessions
 from sidecar.calls import CallError, CallRunner
 from sidecar.export import export_project, tallies
+from sidecar.gmail import Gmail, GmailError
+from sidecar.mail import Mailer
 from sidecar.models import COLLECTIONS, ProjectMeta
 from sidecar.store import TEXT_DOCS, NotFoundError, Project, StoreError, Workspace
 
@@ -61,6 +63,10 @@ class StartCall(BaseModel):
     notes: str = ""
 
 
+class TriageRequest(BaseModel):
+    stage: str = ""
+
+
 class SessionRequest(BaseModel):
     path: str
     person_id: str = ""
@@ -72,8 +78,18 @@ def birth_time(path: Path) -> float:
     return getattr(st, "st_birthtime", st.st_mtime)
 
 
-def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None) -> FastAPI:
+def create_app(
+    workspace: Workspace,
+    token: str,
+    calls: CallRunner | None = None,
+    gmail: Gmail | None = None,
+    mailer: Mailer | None = None,
+) -> FastAPI:
     runner = calls or CallRunner()
+    gmail = gmail or Gmail(
+        opener=lambda url: subprocess.run(["open", url], check=False, timeout=10)
+    )
+    mailer = mailer or Mailer(workspace, gmail, call_live=lambda: runner.live)
     app = FastAPI(title="Sidecar engine", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
         CORSMiddleware,
@@ -106,6 +122,10 @@ def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None
     @app.exception_handler(CallError)
     async def call_error(_: Request, exc: CallError) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    @app.exception_handler(GmailError)
+    async def gmail_error(_: Request, exc: GmailError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
 
     @app.exception_handler(ValidationError)
     async def invalid(_: Request, exc: ValidationError) -> JSONResponse:
@@ -207,6 +227,7 @@ def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None
             "evidence_to_review": sum(1 for e in evidence if e.review_status == "proposed"),
             "evidence_accepted": sum(1 for e in evidence if e.review_status == "accepted"),
             "drafts_to_review": sum(1 for m in messages if m.status == "draft"),
+            "replies_to_review": sum(1 for m in messages if m.kind == "reply" and not m.triaged),
             "sent": sum(1 for m in messages if m.status == "sent"),
             "prospects_to_review": stages.get("ready_for_review", 0),
             "leads_open": [p.model_dump(mode="json") for p in people if p.stage in OPEN_STAGES],
@@ -245,7 +266,7 @@ def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None
         orgs = {o.id: o for o in proj.all("organizations")}
         out = []
         for m in proj.all("messages"):
-            if m.status not in ("draft", "approved"):
+            if m.status not in ("draft", "approved", "failed"):
                 continue
             person = people.get(m.person_id)
             org = orgs.get(person.organization_id) if person else None
@@ -289,6 +310,36 @@ def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None
         if body.mapping is None:
             raise HTTPException(status_code=422, detail="A column mapping is required")
         return csv_import.commit(project(slug), body.csv, body.mapping)
+
+    @app.get("/gmail", dependencies=guarded)
+    def gmail_status() -> dict:
+        return gmail.status()
+
+    @app.post("/gmail/connect", dependencies=guarded)
+    def gmail_connect() -> dict:
+        return {"url": gmail.begin_connect()}
+
+    @app.post("/gmail/disconnect", dependencies=guarded)
+    def gmail_disconnect() -> dict:
+        gmail.disconnect()
+        return gmail.status()
+
+    @app.get("/projects/{slug}/sending", dependencies=guarded)
+    def sending_status(slug: str) -> dict:
+        return mailer.status(project(slug))
+
+    @app.post("/projects/{slug}/outreach/follow-ups", dependencies=guarded)
+    def draft_follow_ups(slug: str) -> dict:
+        drafted = outreach.due_follow_ups(project(slug), mailer.clock().date())
+        return {"created": [m.id for m in drafted]}
+
+    @app.post("/projects/{slug}/replies/{reply_id}/triage", dependencies=guarded)
+    def triage(slug: str, reply_id: str, body: TriageRequest) -> dict:
+        return outreach.triage_reply(project(slug), reply_id, body.stage).model_dump(mode="json")
+
+    @app.post("/gmail/check", dependencies=guarded)
+    def check_replies() -> dict:
+        return {"new": mailer.check_replies()}
 
     @app.get("/call", dependencies=guarded)
     def active_call() -> dict | None:

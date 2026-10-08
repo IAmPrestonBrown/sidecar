@@ -38,3 +38,7 @@ app/src-tauri/target/
 app/src-tauri/gen/
 
 .DS_Store
+
+# Google OAuth client files
+google_client*.json
+client_secret*.json

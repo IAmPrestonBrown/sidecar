@@ -3,9 +3,12 @@
   import { get, patch, post } from '../lib/api'
   import { app } from '../lib/state.svelte'
   import { autosize } from '../lib/autosize'
-  import type { EmailSettings, ProjectMeta } from '../lib/types'
+  import type { EmailSettings, GmailStatus, ProjectMeta } from '../lib/types'
 
   let meta = $state<ProjectMeta | null>(null)
+  let gmail = $state<GmailStatus | null>(null)
+  let confirmDisconnect = $state(false)
+  let poll: ReturnType<typeof setTimeout> | undefined
   let exported = $state('')
   let error = $state('')
 
@@ -22,7 +25,36 @@
       .then(() => get<ProjectMeta>(app.base))
       .then((m) => (meta = m))
       .catch((e) => (error = String(e)))
+    loadGmail()
+    return () => clearTimeout(poll)
   })
+
+  async function loadGmail() {
+    clearTimeout(poll)
+    try {
+      gmail = await get<GmailStatus>('/gmail')
+    } catch (e) {
+      error = String(e)
+      return
+    }
+    // Watch for the browser sign-in to finish.
+    if (gmail.connecting) poll = setTimeout(loadGmail, 2000)
+  }
+
+  async function connectGmail() {
+    error = ''
+    try {
+      await post('/gmail/connect')
+      await loadGmail()
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
+  async function disconnectGmail() {
+    gmail = await post<GmailStatus>('/gmail/disconnect')
+    confirmDisconnect = false
+  }
 
   async function save(fields: Record<string, unknown>) {
     error = ''
@@ -109,6 +141,20 @@
       <h2>Sending</h2>
       <div class="group pad">
         <div class="form-grid">
+          <span class="label">Send</span>
+          <span class="stack">
+            <label class="check"
+              ><input
+                type="checkbox"
+                checked={meta.sending.active}
+                onchange={(e) => save({ sending: { active: (e.currentTarget as HTMLInputElement).checked } })}
+              /> Send approved emails for this project</label
+            >
+            <span class="muted">
+              Only emails you approved in the review queue are sent, one at a time. Sending pauses during
+              calls and when the app is closed.
+            </span>
+          </span>
           <label for="cap">Daily cap</label>
           <span class="inline"
             ><input
@@ -212,7 +258,38 @@
             />
           {/if}
           <span class="label">Gmail</span>
-          <span class="muted">Not connected. Gmail support is not available yet.</span>
+          <span class="stack">
+            {#if !gmail}
+              <span class="muted">Checking…</span>
+            {:else if gmail.connected}
+              <span class="inline">
+                <span>Connected as <span class="selectable">{gmail.email}</span></span>
+                {#if confirmDisconnect}
+                  <button class="btn small" onclick={() => (confirmDisconnect = false)}>Cancel</button>
+                  <button class="btn small danger" onclick={disconnectGmail}>Disconnect</button>
+                {:else}
+                  <button class="btn small" onclick={() => (confirmDisconnect = true)}>Disconnect…</button>
+                {/if}
+              </span>
+              <span class="muted">One account for all projects. Its access is stored in the Keychain.</span>
+            {:else if !gmail.configured}
+              <span class="muted">
+                Sidecar uses your own Google Cloud OAuth client. Create a Desktop app client with the Gmail
+                API enabled, download its JSON file, and save it as
+                <code class="selectable">{gmail.client_file}</code>. Then come back here.
+              </span>
+              <span><button class="btn small" onclick={loadGmail}>Check again</button></span>
+            {:else if gmail.connecting}
+              <span class="muted">Finish signing in in your browser…</span>
+            {:else}
+              <span class="inline">
+                <button class="btn small" onclick={connectGmail}>Connect Gmail…</button>
+                <span class="muted"
+                  >Opens Google sign-in in your browser. Sidecar asks to send and read mail.</span
+                >
+              </span>
+            {/if}
+          </span>
         </div>
       </div>
     </section>
@@ -270,5 +347,10 @@
     font-size: 11px;
     white-space: pre-wrap;
     color: var(--muted);
+  }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 </style>

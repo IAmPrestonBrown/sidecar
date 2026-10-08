@@ -69,6 +69,17 @@
         >
         <span class="chev"><Icon name="chevron" /></span>
       </a>
+      {#if overview?.replies_to_review}
+        <a class="row" href="#/inbox">
+          <span class="big num">{overview.replies_to_review}</span>
+          <span class="stack"
+            ><span class="strong">Replies to read</span><span class="muted"
+              >Follow-ups to them are stopped</span
+            ></span
+          >
+          <span class="chev"><Icon name="chevron" /></span>
+        </a>
+      {/if}
       <a class="row" href="#/queue">
         <span class="big num">{overview?.drafts_to_review ?? 0}</span>
         <span class="stack"

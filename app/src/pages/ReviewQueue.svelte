@@ -4,7 +4,7 @@
   import { get, patch, post } from '../lib/api'
   import { autosize } from '../lib/autosize'
   import { app } from '../lib/state.svelte'
-  import type { QueueItem } from '../lib/types'
+  import type { QueueItem, SendingStatus } from '../lib/types'
 
   interface ApproveResult {
     approved: string[]
@@ -22,8 +22,13 @@
   let notice = $state('')
   let error = $state('')
 
+  let sending = $state<SendingStatus | null>(null)
+
   async function load() {
-    items = await get<QueueItem[]>(`${app.base}/outreach/queue`)
+    ;[items, sending] = await Promise.all([
+      get<QueueItem[]>(`${app.base}/outreach/queue`),
+      get<SendingStatus>(`${app.base}/sending`),
+    ])
     if (!items.some((i) => i.id === selectedId)) selectedId = drafts[0]?.id ?? items[0]?.id ?? ''
     checked = checked.filter((id) => items.some((i) => i.id === id && i.status === 'draft'))
   }
@@ -35,6 +40,25 @@
 
   const drafts = $derived(items.filter((i) => i.status === 'draft'))
   const approved = $derived(items.filter((i) => i.status === 'approved'))
+  const failed = $derived(items.filter((i) => i.status === 'failed'))
+
+  async function retry(id: string) {
+    await patch(`${app.base}/c/messages/${id}`, { status: 'approved', error: '' })
+    app.changed()
+  }
+
+  async function draftFollowUps() {
+    error = ''
+    try {
+      const res = await post<{ created: string[] }>(`${app.base}/outreach/follow-ups`)
+      notice = res.created.length
+        ? `Drafted ${res.created.length} ${res.created.length === 1 ? 'follow-up' : 'follow-ups'}.`
+        : 'No follow-ups are due.'
+      app.changed()
+    } catch (e) {
+      error = String(e)
+    }
+  }
   const current = $derived(items.find((i) => i.id === selectedId))
   const passing = $derived(drafts.filter((d) => !d.checks.some((c) => c.level === 'fail')))
   const unverified = (item: QueueItem) =>
@@ -110,6 +134,7 @@
 
 <Toolbar title="Review queue" subtitle={`${drafts.length} drafts · ${approved.length} approved`}>
   {#snippet actions()}
+    <button class="btn" onclick={draftFollowUps}>Draft due follow-ups</button>
     {#if checked.length}
       <button class="btn" onclick={() => (pendingBulk = [...checked])}
         >Approve {checked.length} selected…</button
@@ -122,8 +147,16 @@
 </Toolbar>
 
 <div class="banner muted">
-  Approved emails wait here. Nothing is sent until Gmail is connected, and every send still follows the daily
-  cap.
+  {#if !sending || !sending.connected}
+    Approved emails wait here. Nothing is sent until you connect Gmail in <a href="#/settings">Settings</a>.
+  {:else if !sending.active}
+    Sending is off for this project. Approved emails wait here until you turn it on in
+    <a href="#/settings">Settings</a>.
+  {:else}
+    Sending is on: {sending.sent_today} of {sending.daily_cap} sent today, {sending.waiting} waiting.
+    {sending.blocked ? `${sending.blocked}.` : 'Sends go out one at a time inside the send window.'}
+  {/if}
+  {#if sending?.last_error}<span class="contradicts">Last error: {sending.last_error}</span>{/if}
 </div>
 
 {#if pendingBulk}
@@ -154,7 +187,7 @@
 {:else}
   <div class="split">
     <nav class="list" aria-label="Drafts">
-      {#each [{ title: 'Drafts', rows: drafts }, { title: 'Approved, waiting to send', rows: approved }] as group (group.title)}
+      {#each [{ title: 'Drafts', rows: drafts }, { title: 'Approved, waiting to send', rows: approved }, { title: 'Not sent', rows: failed }] as group (group.title)}
         {#if group.rows.length}
           <div class="caption group-title">{group.title}</div>
           {#each group.rows as item (item.id)}
@@ -221,8 +254,11 @@
             >
               Approve <span class="key">A</span>
             </button>
+          {:else if current.status === 'failed'}
+            <span class="contradicts">{current.error || 'Sending failed.'}</span>
+            <button class="btn" onclick={() => retry(current.id)}>Try again</button>
           {:else}
-            <span class="muted">Approved. Waiting for Gmail to send.</span>
+            <span class="muted">Approved. Waiting to send.</span>
           {/if}
         </div>
       </section>
