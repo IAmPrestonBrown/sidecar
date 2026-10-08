@@ -352,8 +352,13 @@ class Gmail:
             },
         )
         if res.status_code in (400, 401):
+            # Expired or revoked, for example after seven days in Testing mode.
+            # Forget the token so the app shows Gmail as disconnected.
+            self.store.delete(email)
+            with self.lock:
+                self._access = None
             raise NotConnectedError(
-                "Gmail access was revoked or expired. Connect again in Settings."
+                "Gmail access expired or was revoked. Connect again in Settings."
             )
         if res.status_code != 200:
             raise GmailError(f"Token refresh failed ({res.status_code})")

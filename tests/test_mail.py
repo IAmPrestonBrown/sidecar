@@ -9,7 +9,7 @@ import httpx2
 import pytest
 
 from sidecar import outreach
-from sidecar.gmail import Gmail, GmailError, NewMessage, build_mime
+from sidecar.gmail import Gmail, GmailError, NewMessage, NotConnectedError, build_mime
 from sidecar.mail import Mailer
 from sidecar.store import Workspace
 
@@ -170,6 +170,19 @@ def test_missing_scope_is_refused(tmp_path) -> None:
     gmail = make_gmail(tmp_path, handler)
     with pytest.raises(GmailError, match="Both Gmail permissions"):
         gmail.finish_connect(gmail.client(), "code", "v", "http://127.0.0.1:1/")
+
+
+def test_expired_token_disconnects(tmp_path) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(400, json={"error": "invalid_grant"})
+
+    gmail = make_gmail(tmp_path, handler)
+    gmail.save_state(email="me@example.com")
+    gmail.store.set("me@example.com", "rt")
+    assert gmail.status()["connected"]
+    with pytest.raises(NotConnectedError, match="Connect again"):
+        gmail.access_token()
+    assert not gmail.status()["connected"]
 
 
 def test_connect_needs_client_file(tmp_path) -> None:
