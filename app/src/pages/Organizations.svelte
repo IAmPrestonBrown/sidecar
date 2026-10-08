@@ -119,6 +119,7 @@
           <th style="width: 180px">Segment</th>
           <th style="width: 70px">People</th>
           <th style="width: 130px">Contacted before</th>
+          <th style="width: 130px"></th>
         </tr>
       </thead>
       <tbody>
@@ -131,9 +132,10 @@
             <td>{o.segment}</td>
             <td class="num">{peopleByOrg[o.id]?.length ?? 0}</td>
             <td class:mixed={o.already_contacted}>{o.already_contacted ? 'Yes' : ''}</td>
+            <td class="muted">{o.independent ? '' : 'Not independent'}</td>
           </tr>
         {:else}
-          <tr><td colspan="4" class="muted">No organizations match.</td></tr>
+          <tr><td colspan="5" class="muted">No organizations match.</td></tr>
         {/each}
       </tbody>
     </table>
@@ -174,6 +176,14 @@
               onchange={(e) => save({ already_contacted: (e.currentTarget as HTMLInputElement).checked })}
             /> Contacted before this project</label
           >
+          <label class="check"
+            ><input
+              type="checkbox"
+              checked={current.independent}
+              onchange={(e) => save({ independent: (e.currentTarget as HTMLInputElement).checked })}
+            /> Counts as an independent source</label
+          >
+          <p class="muted">Turn off for vendors, publishers, and regulators.</p>
           <label for="o-notes">Notes</label>
           <textarea id="o-notes" class="field" rows="4" value={current.notes} onblur={text('notes')}
           ></textarea>

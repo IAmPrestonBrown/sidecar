@@ -31,6 +31,7 @@ export interface Organization extends Rec {
   website: string
   segment: string
   already_contacted: boolean
+  independent: boolean
   sources: Source[]
   notes: string
 }
@@ -77,7 +78,18 @@ export interface Evidence extends Rec {
   basis: string
   source: string
   review_status: 'proposed' | 'accepted' | 'rejected'
-  links: { hypothesis_id: string; stance: Stance }[]
+  links: { hypothesis_id: string; stance: Stance; strength?: '' | 'strong' | 'moderate' | 'weak' }[]
+  // Present on evidence imported from a research spreadsheet.
+  source_title?: string
+  source_url?: string
+  context?: string
+  codings?: {
+    hypothesis: string
+    direction: string
+    strength: string
+    rationale: string
+    alternative: string
+  }[]
 }
 
 export interface Tally {

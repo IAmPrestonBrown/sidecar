@@ -172,6 +172,26 @@ def test_tallies_count_independent_orgs_and_strength(tmp_path) -> None:
     assert t["organizations"] == 2
 
 
+def test_graded_links_and_dependent_orgs(tmp_path) -> None:
+    proj = Workspace(tmp_path).create_project("G")
+    h = proj.create("hypotheses", {"code": "H1", "statement": "s"})
+    vendor = proj.create("organizations", {"name": "Vendor", "independent": False})
+    shop = proj.create("organizations", {"name": "Shop"})
+    for org, strength in ((vendor.id, "moderate"), (shop.id, "strong")):
+        proj.create(
+            "evidence",
+            {
+                "organization_id": org,
+                "type": "opinion",
+                "review_status": "accepted",
+                "links": [{"hypothesis_id": h.id, "stance": "supports", "strength": strength}],
+            },
+        )
+    t = tallies(proj, h.id)
+    assert t["supports"] == {"strong": 1, "weak": 1}
+    assert t["organizations"] == 1
+
+
 def test_export_writes_json_and_markdown(tmp_path) -> None:
     ws = Workspace(tmp_path)
     proj = create_from_briefs(ws, "Example study", RESEARCH, OUTREACH)

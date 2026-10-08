@@ -162,19 +162,47 @@
         <dt>Org</dt>
         <dd>{orgName(current) || '—'}</dd>
         <dt>Type</dt>
-        <dd>{label(current.type)} · {isStrong(current.type, current.basis) ? 'strong' : 'weak'}</dd>
+        <dd>
+          {label(current.type)}{#if !current.links.some((l) => l.strength)}
+            · {isStrong(current.type, current.basis) ? 'strong' : 'weak'}{/if}
+        </dd>
         <dt>Basis</dt>
         <dd>{label(current.basis)}</dd>
         <dt>Links</dt>
         <dd>
           {#each current.links as l (l.hypothesis_id)}<div class={l.stance}>
               {label(l.stance)}
-              {hypById[l.hypothesis_id]?.code}
+              {hypById[l.hypothesis_id]?.code}{#if l.strength}<span class="muted"> · {l.strength}</span>{/if}
             </div>{/each}
         </dd>
         <dt>Source</dt>
-        <dd>{label(current.source)}{current.at_seconds != null ? ` at ${mmss(current.at_seconds)}` : ''}</dd>
+        <dd>
+          {label(current.source)}{current.at_seconds != null ? ` at ${mmss(current.at_seconds)}` : ''}
+          {#if current.source_title || current.source_url}
+            <div class="selectable">
+              {#if current.source_url?.startsWith('http')}
+                <a href={current.source_url} target="_blank" rel="noreferrer"
+                  >{current.source_title || current.source_url}</a
+                >
+              {:else}{current.source_title} {current.source_url}{/if}
+            </div>
+          {/if}
+        </dd>
+        {#if current.context}
+          <dt>Context</dt>
+          <dd class="selectable">{current.context}</dd>
+        {/if}
       </dl>
+      {#if current.codings?.length}
+        <div class="caption">CODING</div>
+        {#each current.codings as c, i (i)}
+          <div class="coding selectable">
+            <span class="strong">{c.hypothesis} · {c.direction} · {c.strength}</span>
+            {#if c.rationale}<span>{c.rationale}</span>{/if}
+            {#if c.alternative}<span class="muted">Other explanation: {c.alternative}</span>{/if}
+          </div>
+        {/each}
+      {/if}
       <div class="buttons">
         <button class="btn small" onclick={() => (editing = true)}>Edit</button>
         <button class="btn small danger" onclick={remove}>Remove</button>
@@ -210,6 +238,13 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+  .coding {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    line-height: 1.4;
   }
   .quote {
     font-size: 14px;

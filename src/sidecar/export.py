@@ -42,6 +42,7 @@ def export_data(project: Project) -> dict:
 def tallies(project: Project, hypothesis_id: str) -> dict:
     """Accepted-evidence counts for one hypothesis, by stance and strength."""
     people = {p.id: p for p in project.all("people")}
+    dependent = {o.id for o in project.all("organizations") if not o.independent}
     out = {s: {"strong": 0, "weak": 0} for s in STANCE_ORDER}
     orgs: set[str] = set()
     for ev in project.all("evidence"):
@@ -50,10 +51,13 @@ def tallies(project: Project, hypothesis_id: str) -> dict:
         for link in ev.links:
             if link.hypothesis_id != hypothesis_id:
                 continue
-            strong = ev.type in STRONG_TYPES and ev.basis != "interpretation"
+            if link.strength:
+                strong = link.strength == "strong"
+            else:
+                strong = ev.type in STRONG_TYPES and ev.basis != "interpretation"
             out[link.stance]["strong" if strong else "weak"] += 1
             org = ev.organization_id or getattr(people.get(ev.person_id), "organization_id", "")
-            if org:
+            if org and org not in dependent:
                 orgs.add(org)
     out["organizations"] = len(orgs)
     return out

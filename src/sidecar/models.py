@@ -100,6 +100,9 @@ class Organization(Record):
     website: str = ""
     segment: str = ""
     already_contacted: bool = False
+    # Vendors, publishers, and regulators are sources but not independent
+    # confirmations, so tallies leave them out of the organization count.
+    independent: bool = True
     sources: list[Source] = []
     notes: str = ""
 
@@ -147,6 +150,9 @@ class Interview(Record):
 class EvidenceLink(BaseModel):
     hypothesis_id: str
     stance: Stance
+    # Set when this link was graded on its own. Otherwise strength follows the
+    # evidence type and basis.
+    strength: Literal["", "strong", "moderate", "weak"] = ""
 
 
 class Evidence(Record):
