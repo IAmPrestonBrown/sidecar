@@ -864,6 +864,10 @@ async def run_batch(cfg: Config, session_dir: Path) -> None:
     labels = map_batch_speakers(batch, live, window, interviewer, them)
     for seg in batch:
         seg.label = labels.get(seg.speaker_id, f"S{seg.speaker_id}")
+    # Timed segments for the app's call review; transcript.md is for reading.
+    (session_dir / "transcript.jsonl").write_text(
+        "".join(json.dumps(seg.to_json()) + "\n" for seg in batch)
+    )
     title, date_line = _header(session_dir, wav_duration(wav))
     text = render_markdown(
         title,

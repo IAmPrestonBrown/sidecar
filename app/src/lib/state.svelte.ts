@@ -14,6 +14,7 @@ export type Page =
   | 'organizations'
   | 'find'
   | 'calls'
+  | 'call'
   | 'settings'
 
 export interface Route {

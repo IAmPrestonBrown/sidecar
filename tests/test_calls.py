@@ -104,3 +104,37 @@ def test_coach_run_overrides(tmp_path) -> None:
     assert out.coach.live_activity == "active"
     assert "sourdough" in out.deepgram.keyterms
     assert out.server.port == 9123
+
+
+def test_call_review_and_audio(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
+    from sidecar.api import create_app
+
+    ws = Workspace(tmp_path / "projects")
+    project = ws.create_project("Review")
+    folder = tmp_path / "session"
+    folder.mkdir()
+    (folder / "audio.wav").write_bytes(b"RIFF0000WAVEdata" + bytes(64))
+    (folder / "session.json").write_text(json.dumps({"duration_s": 95}))
+    (folder / "transcript_live.jsonl").write_text(
+        json.dumps({"start": 1, "end": 2, "speaker_id": 0, "label": "THEM", "text": "live"}) + "\n"
+    )
+    (folder / "transcript.jsonl").write_text(
+        json.dumps({"start": 3.5, "end": 5, "speaker_id": 1, "label": "ME", "text": "final"}) + "\n"
+    )
+    (folder / "marks.jsonl").write_text(
+        json.dumps({"at": 60, "output": {"headline": "Tracker", "claim": "Keeps a sheet"}}) + "\n"
+    )
+    call = project.create("calls", {"session_dir": str(folder)})
+    client = TestClient(create_app(ws, "t" * 32))
+    base = f"/projects/review/calls/{call.id}"
+    data = client.get(f"{base}/review", headers={"X-Sidecar-Token": "t" * 32}).json()
+    assert data["transcript_source"] == "final"
+    assert data["segments"] == [{"start": 3.5, "end": 5, "label": "ME", "text": "final"}]
+    assert data["marks"][0]["headline"] == "Tracker"
+    assert data["duration_s"] == 95
+    assert client.get(f"{base}/audio").status_code == 401
+    audio = client.get(f"{base}/audio", params={"token": "t" * 32}, headers={"Range": "bytes=0-3"})
+    assert audio.status_code == 206
+    assert audio.content == b"RIFF"

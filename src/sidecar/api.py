@@ -9,10 +9,10 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ValidationError
 
-from sidecar import __version__, csv_import, outreach, sessions
+from sidecar import __version__, csv_import, outreach, review, sessions
 from sidecar.calls import CallError, CallRunner
 from sidecar.export import export_project, tallies
 from sidecar.gmail import Gmail, GmailError
@@ -97,6 +97,8 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    expected_token = token
 
     def check_token(request: Request) -> None:
         given = request.headers.get(TOKEN_HEADER, "")
@@ -354,6 +356,21 @@ def create_app(
     @app.post("/call/end", dependencies=guarded)
     def end_call() -> dict:
         return runner.end()
+
+    @app.get("/projects/{slug}/calls/{call_id}/review", dependencies=guarded)
+    def call_review(slug: str, call_id: str) -> dict:
+        return review.call_review(project(slug).get("calls", call_id))
+
+    @app.get("/projects/{slug}/calls/{call_id}/audio")
+    def call_audio(slug: str, call_id: str, token: str = "") -> FileResponse:
+        # An <audio> element cannot send headers, so this route takes the token
+        # as a query parameter.
+        if not hmac.compare_digest(token, expected_token):
+            raise HTTPException(status_code=401, detail="Bad or missing token")
+        wav = review.session_folder(project(slug).get("calls", call_id)) / "audio.wav"
+        if not wav.exists():
+            raise HTTPException(status_code=404, detail="No audio for this call")
+        return FileResponse(wav, media_type="audio/wav")
 
     @app.post("/projects/{slug}/calls/{call_id}/reveal", dependencies=guarded)
     def reveal_call(slug: str, call_id: str) -> dict:

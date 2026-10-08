@@ -8,6 +8,7 @@
   import { gmail } from './lib/gmail.svelte'
   import { app } from './lib/state.svelte'
   import Brief from './pages/Brief.svelte'
+  import CallReview from './pages/CallReview.svelte'
   import Calls from './pages/Calls.svelte'
   import Evidence from './pages/Evidence.svelte'
   import Hypotheses from './pages/Hypotheses.svelte'
@@ -92,6 +93,7 @@
             ]}
           />
         {:else if app.route.page === 'calls'}<Calls personId={app.route.id} />
+        {:else if app.route.page === 'call'}<CallReview id={app.route.id} />
         {/if}
       {/key}
     </main>

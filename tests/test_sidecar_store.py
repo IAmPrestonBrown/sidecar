@@ -220,3 +220,29 @@ def test_shipped_prompts_and_examples_name_no_real_interviewer() -> None:
     texts += [RESEARCH, OUTREACH]
     for text in texts:
         assert "Preston" not in text
+
+
+def test_settings_survive_restarts_and_outside_edits(tmp_path) -> None:
+    ws = Workspace(tmp_path)
+    proj = ws.create_project("Persist")
+    proj.meta.sending.active = True
+    proj.meta.email.subject_template = "hello"
+    proj.save_meta()
+    again = Workspace(tmp_path).project("persist")
+    assert again.meta.sending.active
+    assert again.meta.email.subject_template == "hello"
+
+    data = json.loads((tmp_path / "persist" / "project.json").read_text())
+    data["email"]["subject_template"] = "edited outside"
+    path = tmp_path / "persist" / "project.json"
+    path.write_text(json.dumps(data))
+    import os
+
+    st = path.stat()
+    os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 5_000_000))
+    assert proj.meta.email.subject_template == "edited outside"
+    proj.meta.sending.daily_cap = 12
+    proj.save_meta()
+    reread = json.loads(path.read_text())
+    assert reread["email"]["subject_template"] == "edited outside"
+    assert reread["sending"]["daily_cap"] == 12

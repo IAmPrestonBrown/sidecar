@@ -270,3 +270,13 @@ export interface SendingStatus {
   next_after: string
   last_error: string
 }
+
+export interface CallReview {
+  segments: { start: number; end: number; label: string; text: string }[]
+  transcript_source: 'final' | 'live' | 'none'
+  marks: { at: number; headline: string; claim: string; unknown: string; ask: string }[]
+  asks: { at: number; ask: string }[]
+  has_audio: boolean
+  duration_s: number
+  labels: Record<string, string>
+}

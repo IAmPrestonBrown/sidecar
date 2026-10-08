@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import Toolbar from '../components/Toolbar.svelte'
-  import { get, post } from '../lib/api'
+  import { get } from '../lib/api'
   import { call } from '../lib/call.svelte'
   import { mmss, shortDate } from '../lib/labels'
   import { app } from '../lib/state.svelte'
@@ -83,9 +83,6 @@
     }
   }
 
-  function reveal(id: string) {
-    post(`${app.base}/calls/${id}/reveal`).catch((e) => (error = String(e)))
-  }
 </script>
 
 <Toolbar title="Calls" subtitle={`${calls.length} recorded`}>
@@ -145,7 +142,8 @@
         <p>
           <span class="strong">Call with {finished.person_name} saved.</span>
           {#if finished.call_id}
-            <span class="muted">Its evidence is waiting in the</span> <a href="#/inbox">Inbox</a>.
+            <a href={`#/call/${finished.call_id}`}>Review the call</a>
+            <span class="muted">or its evidence in the</span> <a href="#/inbox">Inbox</a>.
           {:else if finished.error}
             <span class="muted selectable">It could not be added to the project: {finished.error}</span>
           {/if}
@@ -220,7 +218,7 @@
         {#each calls as c (c.id)}
           {@const n = counts(c.id)}
           {@const p = personById[c.person_id]}
-          <tr>
+          <tr class="clickable" onclick={() => app.go('call', c.id)}>
             <td class="muted">{shortDate(c.started_at || c.created_at)}</td>
             <td>
               {#if p}<a href={`#/person/${p.id}`} class="strong">{p.name}</a>{:else}<span>{c.title}</span
@@ -233,7 +231,7 @@
             <td>
               {n.accepted} accepted{#if n.proposed}, <a href="#/inbox">{n.proposed} to review</a>{/if}
             </td>
-            <td><button class="link-btn" onclick={() => reveal(c.id)}>Show in Finder</button></td>
+            <td><a href={`#/call/${c.id}`}>Review</a></td>
           </tr>
         {:else}
           <tr><td colspan="6" class="muted">No calls yet.</td></tr>

@@ -123,14 +123,32 @@ class Project:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.lock = threading.RLock()
-        meta_path = path / "project.json"
-        if not meta_path.exists():
+        self.meta_path = path / "project.json"
+        if not self.meta_path.exists():
             raise NotFoundError(f"No project at {path}")
-        self.meta = ProjectMeta.model_validate_json(meta_path.read_text(encoding="utf-8"))
+        self._meta_mtime = 0
+        self._meta = self._read_meta()
         self.collections = {
             name: Collection(path / f"{name}.json", model, prefix)
             for name, (model, prefix) in COLLECTIONS.items()
         }
+
+    def _read_meta(self) -> ProjectMeta:
+        self._meta_mtime = self.meta_path.stat().st_mtime_ns
+        return ProjectMeta.model_validate_json(self.meta_path.read_text(encoding="utf-8"))
+
+    @property
+    def meta(self) -> ProjectMeta:
+        """Project settings, reloaded when project.json changes on disk."""
+        with self.lock:
+            if self.meta_path.stat().st_mtime_ns != self._meta_mtime:
+                self._meta = self._read_meta()
+            return self._meta
+
+    @meta.setter
+    def meta(self, value: ProjectMeta) -> None:
+        with self.lock:
+            self._meta = value
 
     @property
     def slug(self) -> str:
@@ -207,7 +225,8 @@ class Project:
 
     def save_meta(self) -> None:
         with self.lock:
-            atomic_write(self.path / "project.json", self.meta.model_dump_json(indent=2) + "\n")
+            atomic_write(self.meta_path, self._meta.model_dump_json(indent=2) + "\n")
+            self._meta_mtime = self.meta_path.stat().st_mtime_ns
             self.log_activity("update", "project", "", "user")
 
     def log_activity(

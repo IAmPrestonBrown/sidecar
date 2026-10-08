@@ -44,7 +44,7 @@
         { page: 'find', label: 'Find prospects' },
       ],
     },
-    { title: 'Calls', items: [{ page: 'calls', label: 'Calls' }] },
+    { title: 'Calls', items: [{ page: 'calls', label: 'Calls', also: ['call'] }] },
   ]
 
   function active(page: Page, also: Page[] = []): boolean {

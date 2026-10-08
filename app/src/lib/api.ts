@@ -76,6 +76,11 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   return (await res.json()) as T
 }
 
+/** A URL the webview can load directly, such as audio, with the token in the query. */
+export function mediaUrl(path: string): string {
+  return `${base}${path}?token=${encodeURIComponent(token)}`
+}
+
 export const get = <T>(path: string) => api<T>('GET', path)
 export const post = <T>(path: string, body?: unknown) => api<T>('POST', path, body ?? {})
 export const patch = <T>(path: string, body: unknown) => api<T>('PATCH', path, body)
