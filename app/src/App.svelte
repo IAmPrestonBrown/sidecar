@@ -5,6 +5,7 @@
   import { listen } from '@tauri-apps/api/event'
   import { connect, inTauri } from './lib/api'
   import { call } from './lib/call.svelte'
+  import { gmail } from './lib/gmail.svelte'
   import { app } from './lib/state.svelte'
   import Brief from './pages/Brief.svelte'
   import Calls from './pages/Calls.svelte'
@@ -28,6 +29,7 @@
       await app.loadProjects()
       status = 'ready'
       await call.refresh()
+      await gmail.refresh()
       if (inTauri()) {
         await listen('quit-blocked', () => {
           call.quitBlocked = true

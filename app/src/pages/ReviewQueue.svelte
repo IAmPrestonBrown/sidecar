@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import GmailCard from '../components/GmailCard.svelte'
+  import { gmail } from '../lib/gmail.svelte'
   import Toolbar from '../components/Toolbar.svelte'
   import { get, patch, post } from '../lib/api'
   import { autosize } from '../lib/autosize'
@@ -35,6 +37,7 @@
 
   $effect(() => {
     void app.version
+    void gmail.connected
     load().catch((e) => (error = String(e)))
   })
 
@@ -146,12 +149,17 @@
   {/snippet}
 </Toolbar>
 
+{#if sending && !sending.connected}
+  <div class="connect">
+    <GmailCard reason="Approved emails wait here until Gmail is connected." />
+  </div>
+{/if}
 <div class="banner muted">
   {#if !sending || !sending.connected}
-    Approved emails wait here. Nothing is sent until you connect Gmail in <a href="#/settings">Settings</a>.
+    Approved emails wait here until Gmail is connected.
   {:else if !sending.active}
     Sending is off for this project. Approved emails wait here until you turn it on in
-    <a href="#/settings">Settings</a>.
+    <a href="#/settings/sending">Sending settings</a>.
   {:else}
     Sending is on: {sending.sent_today} of {sending.daily_cap} sent today, {sending.waiting} waiting.
     {sending.blocked ? `${sending.blocked}.` : 'Sends go out one at a time inside the send window.'}
@@ -303,6 +311,10 @@
 {/if}
 
 <style>
+  .connect {
+    padding: 16px 24px 0;
+    max-width: 720px;
+  }
   .banner {
     padding: 8px 24px;
     border-bottom: 1px solid var(--sep);

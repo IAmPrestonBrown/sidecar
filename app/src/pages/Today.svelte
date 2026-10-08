@@ -1,5 +1,7 @@
 <script lang="ts">
+  import GmailCard from '../components/GmailCard.svelte'
   import Icon from '../components/Icon.svelte'
+  import { gmail } from '../lib/gmail.svelte'
   import Toolbar from '../components/Toolbar.svelte'
   import { get, post } from '../lib/api'
   import { label, shortDate } from '../lib/labels'
@@ -55,6 +57,12 @@
   {#if error}<div class="error-banner">{error}</div>{/if}
   {#if exported}
     <div class="note selectable">Exported to <code>{exported}</code> and the matching .json file.</div>
+  {/if}
+
+  {#if gmail.status && !gmail.connected}
+    <div class="wide">
+      <GmailCard reason="Connect Gmail to send the emails you approve and track replies." />
+    </div>
   {/if}
 
   <section>

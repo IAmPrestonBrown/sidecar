@@ -1,6 +1,7 @@
 <script lang="ts">
   import { get } from '../lib/api'
   import { call } from '../lib/call.svelte'
+  import { gmail } from '../lib/gmail.svelte'
   import { app, type Page } from '../lib/state.svelte'
   import type { Overview } from '../lib/types'
   import Icon from './Icon.svelte'
@@ -89,6 +90,14 @@
   {/each}
 
   <div class="spacer"></div>
+  <a
+    href="#/settings/email"
+    class="account"
+    title={gmail.connected ? `Gmail: ${gmail.status?.email}` : 'Connect Gmail'}
+  >
+    <span class="dot" class:on={gmail.connected}></span>
+    <span class="who">{gmail.connected ? gmail.status?.email : 'Gmail not connected'}</span>
+  </a>
   <a href="#/settings" class="item" class:active={active('settings')}>
     <span class="icon"><Icon name="settings" /></span>
     <span>Settings</span>
@@ -162,5 +171,34 @@
     height: 8px;
     border-radius: 50%;
     background: var(--contradicts);
+  }
+  .account {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 8px 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .account:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--faint);
+    flex: none;
+  }
+  .dot.on {
+    background: var(--supports);
+  }
+  .who {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>
