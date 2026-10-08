@@ -608,6 +608,10 @@ Built so far (2026-10-08): milestone 1; the session importer from milestone 2
 review queue from milestone 5, without campaigns, sequences, or sending; CSV import
 from milestone 7; and from milestone 8 the Today page, daily backups, and export.
 Organizations have their own page, and interviews are recorded on each person.
+Calls start from the app: the engine runs the coach as a child process with the
+project's brief, prompts, and keyterms, the shell opens its page in a call window,
+and the session is imported when the coach exits. The call library and live call
+window from milestone 2 are in; call review is not.
 
 ## 13. Decisions
 

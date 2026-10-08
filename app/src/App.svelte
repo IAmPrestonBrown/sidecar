@@ -2,9 +2,12 @@
   import { onMount } from 'svelte'
   import Later from './components/Later.svelte'
   import Sidebar from './components/Sidebar.svelte'
-  import { connect } from './lib/api'
+  import { listen } from '@tauri-apps/api/event'
+  import { connect, inTauri } from './lib/api'
+  import { call } from './lib/call.svelte'
   import { app } from './lib/state.svelte'
   import Brief from './pages/Brief.svelte'
+  import Calls from './pages/Calls.svelte'
   import Evidence from './pages/Evidence.svelte'
   import Hypotheses from './pages/Hypotheses.svelte'
   import Hypothesis from './pages/Hypothesis.svelte'
@@ -24,6 +27,13 @@
       await connect()
       await app.loadProjects()
       status = 'ready'
+      await call.refresh()
+      if (inTauri()) {
+        await listen('quit-blocked', () => {
+          call.quitBlocked = true
+          app.go('calls')
+        })
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : String(err)
       status = 'failed'
@@ -79,16 +89,7 @@
               'For now, add people by hand or with Import CSV on the People page',
             ]}
           />
-        {:else if app.route.page === 'calls'}
-          <Later
-            title="Calls"
-            points={[
-              'Start the live coach from a person, with preflight in a sheet',
-              'Call library and call review with audio, marks, and the final transcript',
-              'Evidence from each call lands in the Inbox for review',
-              'Until then, run the coach with uv run coach run and import a session with uv run sidecar import-call',
-            ]}
-          />
+        {:else if app.route.page === 'calls'}<Calls personId={app.route.id} />
         {/if}
       {/key}
     </main>

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import webbrowser
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -377,6 +378,28 @@ def cmd_recover(cfg: Config, session_dir: Path, assume_yes: bool) -> int:
     return cmd_finalize(cfg, session_dir)
 
 
+def with_run_overrides(cfg: Config, args: argparse.Namespace) -> Config:
+    """Apply the per-call options the desktop app passes on the command line."""
+    session = cfg.session
+    if args.brief:
+        session = replace(session, brief_path=str(Path(args.brief).expanduser().resolve()))
+    if args.prompts_dir:
+        session = replace(session, prompts_dir=str(Path(args.prompts_dir).expanduser().resolve()))
+    if args.sessions_dir:
+        session = replace(
+            session, interviews_dir=str(Path(args.sessions_dir).expanduser().resolve())
+        )
+    coach = replace(cfg.coach, live_activity=args.activity) if args.activity else cfg.coach
+    keyterms = list(dict.fromkeys([*cfg.deepgram.keyterms, *args.keyterm]))
+    return replace(
+        cfg,
+        session=session,
+        coach=coach,
+        deepgram=replace(cfg.deepgram, keyterms=keyterms),
+        server=replace(cfg.server, port=args.port) if args.port else cfg.server,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="coach")
     parser.add_argument("--debug", action="store_true", help="verbose console logging")
@@ -392,6 +415,12 @@ def main() -> None:
     run.add_argument("--speed", type=float, default=1.0)
     run.add_argument("--no-browser", action="store_true", help="do not open the browser")
     run.add_argument("--autostart", action="store_true", help="start recording immediately")
+    run.add_argument("--brief", default=None, help="research brief (overrides brief_path)")
+    run.add_argument("--prompts-dir", default=None, help="prompt folder (overrides prompts_dir)")
+    run.add_argument("--sessions-dir", default=None, help="where to save the session folder")
+    run.add_argument("--port", type=int, default=None, help="UI port (overrides server.port)")
+    run.add_argument("--activity", choices=["quiet", "balanced", "active"], default=None)
+    run.add_argument("--keyterm", action="append", default=[], help="extra Deepgram keyterm")
     fin = sub.add_parser("finalize", help="rerun batch transcription for a session")
     fin.add_argument("dir")
     rec = sub.add_parser("recover", help="rebuild files after a crash")
@@ -404,6 +433,7 @@ def main() -> None:
     if args.command == "preflight":
         sys.exit(cmd_preflight(cfg))
     if args.command == "run":
+        cfg = with_run_overrides(cfg, args)
         if args.minutes is None:
             args.minutes = cfg.session.default_planned_minutes
         with contextlib.suppress(KeyboardInterrupt):
@@ -412,3 +442,7 @@ def main() -> None:
         sys.exit(cmd_finalize(cfg, Path(args.dir)))
     if args.command == "recover":
         sys.exit(cmd_recover(cfg, Path(args.dir), args.yes))
+
+
+if __name__ == "__main__":
+    main()

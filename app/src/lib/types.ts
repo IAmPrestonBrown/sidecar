@@ -204,3 +204,28 @@ export interface ImportPreview {
   targets: string[]
   rows: ImportRow[]
 }
+
+export interface Call extends Rec {
+  person_id: string
+  title: string
+  started_at: string
+  duration_s: number
+  session_dir: string
+  status: 'planned' | 'recording' | 'finalizing' | 'done' | 'imported'
+  planned_minutes: number
+  marks: number
+  cost_usd: number
+}
+
+export interface ActiveCall {
+  slug: string
+  person_id: string
+  person_name: string
+  started_at: string
+  state: 'starting' | 'ready' | 'ending' | 'ended' | 'failed'
+  url: string
+  session_dir: string
+  call_id: string
+  error: string
+  output: string[]
+}

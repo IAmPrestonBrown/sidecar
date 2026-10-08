@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
 from sidecar import __version__, csv_import, outreach, sessions
+from sidecar.calls import CallError, CallRunner
 from sidecar.export import export_project, tallies
 from sidecar.models import COLLECTIONS, ProjectMeta
 from sidecar.store import TEXT_DOCS, NotFoundError, Project, StoreError, Workspace
@@ -54,6 +55,12 @@ class CsvRequest(BaseModel):
     mapping: dict[str, str] | None = None
 
 
+class StartCall(BaseModel):
+    person_id: str
+    minutes: int = 30
+    notes: str = ""
+
+
 class SessionRequest(BaseModel):
     path: str
     person_id: str = ""
@@ -65,7 +72,8 @@ def birth_time(path: Path) -> float:
     return getattr(st, "st_birthtime", st.st_mtime)
 
 
-def create_app(workspace: Workspace, token: str) -> FastAPI:
+def create_app(workspace: Workspace, token: str, calls: CallRunner | None = None) -> FastAPI:
+    runner = calls or CallRunner()
     app = FastAPI(title="Sidecar engine", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
         CORSMiddleware,
@@ -93,6 +101,10 @@ def create_app(workspace: Workspace, token: str) -> FastAPI:
 
     @app.exception_handler(StoreError)
     async def store_error(_: Request, exc: StoreError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    @app.exception_handler(CallError)
+    async def call_error(_: Request, exc: CallError) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=409)
 
     @app.exception_handler(ValidationError)
@@ -277,6 +289,28 @@ def create_app(workspace: Workspace, token: str) -> FastAPI:
         if body.mapping is None:
             raise HTTPException(status_code=422, detail="A column mapping is required")
         return csv_import.commit(project(slug), body.csv, body.mapping)
+
+    @app.get("/call", dependencies=guarded)
+    def active_call() -> dict | None:
+        return runner.status()
+
+    @app.post("/projects/{slug}/calls/start", dependencies=guarded)
+    def start_call(slug: str, body: StartCall) -> dict:
+        if not 5 <= body.minutes <= 180:
+            raise HTTPException(status_code=422, detail="Planned minutes must be 5 to 180")
+        return runner.start(project(slug), body.person_id, body.minutes, body.notes)
+
+    @app.post("/call/end", dependencies=guarded)
+    def end_call() -> dict:
+        return runner.end()
+
+    @app.post("/projects/{slug}/calls/{call_id}/reveal", dependencies=guarded)
+    def reveal_call(slug: str, call_id: str) -> dict:
+        folder = Path(project(slug).get("calls", call_id).session_dir)
+        if not folder.is_dir():
+            raise HTTPException(status_code=404, detail="The session folder is missing")
+        subprocess.run(["open", str(folder)], check=False, timeout=10)
+        return {"ok": True}
 
     @app.post("/projects/{slug}/import/session", dependencies=guarded)
     def import_session(slug: str, body: SessionRequest) -> dict:

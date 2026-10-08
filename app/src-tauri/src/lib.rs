@@ -6,9 +6,10 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
-use tauri::{Manager, RunEvent, State};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder};
 
 /// Connection details for the engine, and its process handle.
 struct Engine {
@@ -33,6 +34,43 @@ fn engine_info(engine: State<Engine>) -> EngineInfo {
         token: engine.token.clone(),
         error: engine.error.lock().unwrap().clone(),
     }
+}
+
+/// True while a call is recording, so quitting can be refused.
+#[derive(Default)]
+struct CallState {
+    active: AtomicBool,
+}
+
+#[tauri::command]
+fn set_call_active(active: bool, call: State<CallState>) {
+    call.active.store(active, Ordering::SeqCst);
+}
+
+/// Opens the live call window, or focuses it if it is already open.
+/// Only the coach's local address is allowed.
+#[tauri::command]
+fn open_call_window(app: AppHandle, url: String, title: String) -> Result<(), String> {
+    let url = Url::parse(&url).map_err(|e| e.to_string())?;
+    if url.scheme() != "http" || url.host_str() != Some("127.0.0.1") {
+        return Err("The call window only opens the local coach".into());
+    }
+    if let Some(window) = app.get_webview_window("call") {
+        if window.url().map_err(|e| e.to_string())? != url {
+            window.navigate(url).map_err(|e| e.to_string())?;
+        }
+        window.set_title(&title).map_err(|e| e.to_string())?;
+        window.show().map_err(|e| e.to_string())?;
+        return window.set_focus().map_err(|e| e.to_string());
+    }
+    WebviewWindowBuilder::new(&app, "call", WebviewUrl::External(url))
+        .title(title)
+        .inner_size(1180.0, 820.0)
+        .min_inner_size(720.0, 520.0)
+        .theme(Some(tauri::Theme::Dark))
+        .build()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 fn free_port() -> std::io::Result<u16> {
@@ -115,7 +153,12 @@ fn stop_engine(engine: &Engine) {
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(start_engine())
-        .invoke_handler(tauri::generate_handler![engine_info])
+        .manage(CallState::default())
+        .invoke_handler(tauri::generate_handler![
+            engine_info,
+            open_call_window,
+            set_call_active
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -129,9 +172,17 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building the Sidecar app");
 
-    app.run(|handle, event| {
-        if let RunEvent::Exit = event {
-            stop_engine(&handle.state::<Engine>());
+    app.run(|handle, event| match event {
+        RunEvent::ExitRequested { api, .. } => {
+            if handle.state::<CallState>().active.load(Ordering::SeqCst) {
+                api.prevent_exit();
+                let _ = handle.emit("quit-blocked", ());
+                if let Some(window) = handle.get_webview_window("call") {
+                    let _ = window.set_focus();
+                }
+            }
         }
+        RunEvent::Exit => stop_engine(&handle.state::<Engine>()),
+        _ => {}
     });
 }

@@ -23,7 +23,7 @@ let token = ''
 const HEALTH_TIMEOUT_MS = 30000
 const HEALTH_POLL_MS = 250
 
-function inTauri(): boolean {
+export function inTauri(): boolean {
   return '__TAURI_INTERNALS__' in window
 }
 

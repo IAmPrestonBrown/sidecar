@@ -130,6 +130,7 @@
     {:else}
       <button class="btn" onclick={() => (confirmDelete = true)}>Delete…</button>
       <button class="btn" disabled={person?.do_not_contact} onclick={draftEmail}>Draft email</button>
+      <button class="btn" onclick={() => app.go('calls', id)}>Start call…</button>
     {/if}
   {/snippet}
 </Toolbar>

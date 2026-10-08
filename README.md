@@ -61,9 +61,8 @@ can read, copy, or hand to another tool.
 
 Sidecar is early. Working today: projects, hypotheses, evidence review, people,
 organizations, CSV import, drafting and approving emails, interview scheduling notes,
-briefs, export, backups, and the interview coach (run from the terminal, with its
-sessions imported into a project). In progress: running calls inside the app,
-sending approved email through Gmail, and prospect research. Until Gmail is
+briefs, export, backups, and calls with the interview coach inside the app. In
+progress: sending approved email through Gmail, and prospect research. Until Gmail is
 connected, approved emails wait in the queue. The full plan is in [docs/spec.md](docs/spec.md).
 
 ## Requirements
@@ -102,6 +101,14 @@ uv run sidecar new "My study" --brief path/to/brief.md [--outreach path/to/outre
 ```
 
 ## Running an interview
+
+In the app, open a person and choose **Start call**, or use **New call** on the
+Calls page. Sidecar runs the coach's checks, opens the call window, and starts
+recording when you press Start there. When the call ends, the session is saved in
+the project's `calls/` folder and its evidence goes to the Inbox for review. The
+app will not quit while a call is running.
+
+The coach also runs from the terminal:
 
 ```sh
 uv run coach preflight

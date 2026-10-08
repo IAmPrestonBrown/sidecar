@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get } from '../lib/api'
+  import { call } from '../lib/call.svelte'
   import { app, type Page } from '../lib/state.svelte'
   import type { Overview } from '../lib/types'
   import Icon from './Icon.svelte'
@@ -82,6 +83,7 @@
         <span class="icon"><Icon name={item.page} /></span>
         <span>{item.label}</span>
         {#if count(item.page) > 0}<span class="count num">{count(item.page)}</span>{/if}
+        {#if item.page === 'calls' && call.live}<span class="live" title="Call in progress"></span>{/if}
       </a>
     {/each}
   {/each}
@@ -153,5 +155,12 @@
   .spacer {
     flex: 1 1 auto;
     min-height: 24px;
+  }
+  .live {
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--contradicts);
   }
 </style>
