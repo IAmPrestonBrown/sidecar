@@ -216,8 +216,14 @@ class Call(Record):
 class ResearchRun(Record):
     query: str
     status: Literal["running", "done", "failed"] = "done"
+    count: int = 8
     cost_usd: float = 0.0
-    suggestion_ids: list[str] = []
+    searches: int = 0
+    # Each suggestion is a prospect with a status: pending, added, or rejected.
+    suggestions: list[dict] = []
+    dropped: int = 0
+    notes: str = ""
+    error: str = ""
 
 
 COLLECTIONS: dict[str, tuple[type[Record], str]] = {

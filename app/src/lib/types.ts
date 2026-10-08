@@ -280,3 +280,35 @@ export interface CallReview {
   duration_s: number
   labels: Record<string, string>
 }
+
+export interface Suggestion {
+  name: string
+  role: string
+  organization: string
+  organization_website: string
+  email: string
+  email_confidence: string
+  email_source_url: string
+  phone: string
+  segment: string
+  segment_basis: string
+  background: string
+  why_useful: string
+  why_receptive: string
+  sources: Source[]
+  scores: Record<string, Score>
+  status: 'pending' | 'added' | 'rejected'
+  person_id?: string
+}
+
+export interface ResearchRun extends Rec {
+  query: string
+  status: 'running' | 'done' | 'failed'
+  count: number
+  cost_usd: number
+  searches: number
+  suggestions: Suggestion[]
+  dropped: number
+  notes: string
+  error: string
+}

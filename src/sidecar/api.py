@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ValidationError
 
-from sidecar import __version__, csv_import, outreach, review, sessions
+from sidecar import __version__, csv_import, outreach, research, review, sessions
 from sidecar.calls import CallError, CallRunner
 from sidecar.export import export_project, tallies
 from sidecar.gmail import Gmail, GmailError
@@ -65,6 +65,16 @@ class StartCall(BaseModel):
 
 class TriageRequest(BaseModel):
     stage: str = ""
+
+
+class ResearchRequest(BaseModel):
+    query: str
+    count: int = 8
+
+
+class DecideRequest(BaseModel):
+    index: int
+    accept: bool
 
 
 class RespondRequest(BaseModel):
@@ -350,6 +360,17 @@ def create_app(
         draft = outreach.draft_response(proj, reply_id, body.body)
         outreach.triage_reply(proj, reply_id, body.stage)
         return draft.model_dump(mode="json")
+
+    @app.post("/projects/{slug}/research", dependencies=guarded)
+    def start_research(slug: str, body: ResearchRequest) -> dict:
+        create, prices = research.anthropic_create()
+        return research.start(project(slug), body.query, body.count, create, prices).model_dump(
+            mode="json"
+        )
+
+    @app.post("/projects/{slug}/research/{run_id}/decide", dependencies=guarded)
+    def decide_suggestion(slug: str, run_id: str, body: DecideRequest) -> dict:
+        return research.decide(project(slug), run_id, body.index, body.accept)
 
     @app.post("/gmail/check", dependencies=guarded)
     def check_replies() -> dict:

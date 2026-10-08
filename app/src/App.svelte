@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import Later from './components/Later.svelte'
   import Sidebar from './components/Sidebar.svelte'
   import { listen } from '@tauri-apps/api/event'
   import { connect, inTauri } from './lib/api'
@@ -11,6 +10,7 @@
   import CallReview from './pages/CallReview.svelte'
   import Calls from './pages/Calls.svelte'
   import Evidence from './pages/Evidence.svelte'
+  import FindProspects from './pages/FindProspects.svelte'
   import Hypotheses from './pages/Hypotheses.svelte'
   import Hypothesis from './pages/Hypothesis.svelte'
   import Inbox from './pages/Inbox.svelte'
@@ -82,16 +82,7 @@
         {:else if app.route.page === 'settings'}<Settings />
         {:else if app.route.page === 'queue'}<ReviewQueue />
         {:else if app.route.page === 'organizations'}<Organizations />
-        {:else if app.route.page === 'find'}
-          <Later
-            title="Find prospects"
-            points={[
-              'Research runs with cited public sources and email confidence levels',
-              'Five separate scores, never one combined score',
-              'Already-contacted organizations excluded, counterexample segments included',
-              'For now, add people by hand or with Import CSV on the People page',
-            ]}
-          />
+        {:else if app.route.page === 'find'}<FindProspects />
         {:else if app.route.page === 'calls'}<Calls personId={app.route.id} />
         {:else if app.route.page === 'call'}<CallReview id={app.route.id} />
         {/if}
