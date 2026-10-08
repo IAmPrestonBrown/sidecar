@@ -1,0 +1,36 @@
+#!/bin/sh
+# Refuses commits that contain secrets, call recordings, coach session files,
+# large files, or any term listed in ~/.config/sidecar/blocked-terms.txt.
+# Enable with: git config core.hooksPath .githooks
+
+status=0
+blocked_terms="${SIDECAR_CONFIG_DIR:-$HOME/.config/sidecar}/blocked-terms.txt"
+
+fail() {
+    echo "pre-commit: $1" >&2
+    status=1
+}
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+
+for f in $files; do
+    case "$f" in
+        *.wav | *.pcm | *.mp3 | *.m4a | *.aiff) fail "audio file: $f" ;;
+        .env | .env.* | */.env) [ "$f" = ".env.example" ] || fail "env file: $f" ;;
+        */coach.jsonl | */transcript_live.* | */transcript_deepgram.json | */session.log)
+            fail "coach session file: $f" ;;
+    esac
+    size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+    [ "$size" -gt 5000000 ] && fail "file over 5 MB: $f"
+done
+
+keys=$(git diff --cached -U0 | grep -E '^\+' | grep -nE 'sk-ant-[A-Za-z0-9_-]{20,}|(ANTHROPIC|DEEPGRAM)_API_KEY *= *[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{30,}')
+[ -n "$keys" ] && fail "staged changes look like they contain an API key or token"
+
+if [ -f "$blocked_terms" ]; then
+    hits=$(git diff --cached -U0 | grep -E '^\+' | grep -i -F -f "$blocked_terms" | head -5)
+    [ -n "$hits" ] && fail "staged changes contain a term from $blocked_terms"
+fi
+
+exit $status

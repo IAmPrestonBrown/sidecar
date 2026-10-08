@@ -1,0 +1,58 @@
+# Coach settings. Copy this file to ~/.config/sidecar/config.toml and edit it.
+# Paths may be absolute, start with ~, or be relative to the repository root.
+
+[audio]
+input_device = ""
+sample_rate = 16000
+block_frames = 1600
+
+[deepgram]
+model = "nova-3"
+language = "en-US"
+utterance_end_ms = 1500
+endpointing_ms = 300
+keyterms = ["sourdough", "laminated dough", "wholesale", "day-old"]
+mip_opt_out = true
+
+[coach]
+live_model = "claude-sonnet-5-5"
+mark_model = "claude-sonnet-5-5"
+ask_model = "claude-sonnet-5-5"
+live_max_tokens = 900
+mark_max_tokens = 2000
+ask_max_tokens = 1000
+# Effort and thinking per mode. Thinking and effort are part of the cached prefix,
+# so live and ask_next share one setting and share the cache.
+# between_tools is the lowest thinking setting on claude-sonnet-5-5.
+live_effort = "low"
+mark_effort = "medium"
+ask_effort = "low"
+live_thinking = "between_tools"
+mark_thinking = "adaptive"
+ask_thinking = "between_tools"
+# How often live cards appear: quiet (2-5 per interview), balanced (about one
+# every 1-2 minutes), or active (about one per minute).
+live_activity = "balanced"
+min_interval_s = 6
+timer_interval_s = 25
+them_trigger_words = 12
+timeout_s = 15
+mark_timeout_s = 40
+chunk_seconds = 120
+debug_prompts = false
+
+[prices_per_mtok]
+input = 2.00
+output = 10.00
+cache_read = 0.20
+cache_write = 2.50
+
+[session]
+default_planned_minutes = 30
+interviews_dir = "~/Documents/Sidecar/recordings"
+interviewer_label = "INTERVIEWER"
+brief_path = "examples/research_brief.md"
+prompts_dir = "prompts"
+
+[server]
+port = 8765

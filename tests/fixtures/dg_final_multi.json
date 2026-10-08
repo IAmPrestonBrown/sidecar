@@ -1,0 +1,15 @@
+{"type": "Results", "channel_index": [0, 1], "duration": 4.2, "start": 10.0, "is_final": true, "speech_final": true,
+ "channel": {"alternatives": [{"transcript": "So how do you track it? I use a spreadsheet.", "confidence": 0.98,
+  "words": [
+   {"word": "so", "start": 10.0, "end": 10.2, "confidence": 0.99, "speaker": 0, "punctuated_word": "So"},
+   {"word": "how", "start": 10.2, "end": 10.4, "confidence": 0.99, "speaker": 0, "punctuated_word": "how"},
+   {"word": "do", "start": 10.4, "end": 10.5, "confidence": 0.99, "speaker": 0, "punctuated_word": "do"},
+   {"word": "you", "start": 10.5, "end": 10.6, "confidence": 0.99, "speaker": 0, "punctuated_word": "you"},
+   {"word": "track", "start": 10.6, "end": 10.9, "confidence": 0.99, "speaker": 0, "punctuated_word": "track"},
+   {"word": "it", "start": 10.9, "end": 11.0, "confidence": 0.99, "speaker": 0, "punctuated_word": "it?"},
+   {"word": "i", "start": 12.0, "end": 12.1, "confidence": 0.99, "speaker": 1, "punctuated_word": "I"},
+   {"word": "use", "start": 12.1, "end": 12.3, "confidence": 0.99, "speaker": 1, "punctuated_word": "use"},
+   {"word": "a", "start": 12.3, "end": 12.4, "confidence": 0.99, "speaker": 1, "punctuated_word": "a"},
+   {"word": "spreadsheet", "start": 12.4, "end": 13.0, "confidence": 0.99, "speaker": 1, "punctuated_word": "spreadsheet."}
+  ]}]},
+ "metadata": {"request_id": "x", "model_info": {"name": "nova-3"}}, "from_finalize": false}

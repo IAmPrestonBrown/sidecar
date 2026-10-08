@@ -1,0 +1,7 @@
+{"type": "Results", "channel_index": [0, 1], "duration": 2.0, "start": 1.0, "is_final": true, "speech_final": false,
+ "channel": {"alternatives": [{"transcript": "Sourdough does that.", "confidence": 0.97,
+  "words": [
+   {"word": "sourdough", "start": 1.0, "end": 1.6, "confidence": 0.97, "speaker": 0, "punctuated_word": "Sourdough"},
+   {"word": "does", "start": 1.6, "end": 1.8, "confidence": 0.97, "speaker": 0, "punctuated_word": "does"},
+   {"word": "that", "start": 1.8, "end": 2.1, "confidence": 0.97, "speaker": 0, "punctuated_word": "that."}
+  ]}]}}

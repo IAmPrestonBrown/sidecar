@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview Coach</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header id="statusbar">
+  <span class="rec" id="rec" hidden><span class="dot"></span>REC</span>
+  <span id="elapsed">00:00</span>
+  <span id="remaining" class="muted"></span>
+  <span id="who" class="who"></span>
+  <span class="meter" title="mic level"><span id="meterfill"></span></span>
+  <span id="st-mic" class="st"></span>
+  <span id="st-stt" class="st"></span>
+  <span id="st-coach" class="st"></span>
+  <span id="talk" class="st"></span>
+  <span id="mapping" class="st"></span>
+  <span id="st-ui" class="st"></span>
+  <span id="cost" class="muted"></span>
+</header>
+
+<main id="main">
+  <section id="col-main">
+    <section id="pinned" hidden>
+      <div class="pin-head"><span id="pin-kind" class="label"></span><span id="pin-at" class="muted"></span><span class="muted small">Esc to dismiss</span></div>
+      <div id="pin-body"></div>
+    </section>
+
+    <section id="now">
+      <h2>NOW</h2>
+      <div id="cards"><div class="empty">Quiet. Keep listening.</div></div>
+    </section>
+
+    <section id="history-box">
+      <h2>HISTORY</h2>
+      <div id="history"></div>
+    </section>
+    <section id="transcript-box">
+      <h2>TRANSCRIPT</h2>
+      <div id="transcript-scroll"><div id="transcript"></div>
+      <div id="interim" class="interim"></div></div>
+    </section>
+
+  </section>
+
+  <aside id="col-side">
+    <h2>EVIDENCE</h2>
+    <div id="evidence"><div class="empty">None yet.</div></div>
+  </aside>
+</main>
+
+<footer id="controls">
+  <button id="btn-mark" data-key="M"><kbd>M</kbd> MARK</button>
+  <button id="btn-ask" data-key="Q"><kbd>Q</kbd> ASK NEXT</button>
+  <button id="btn-swap" data-key="S"><kbd>S</kbd> SWAP SPEAKERS</button>
+  <span class="spacer"></span>
+  <button id="btn-end" class="end">End</button>
+</footer>
+
+<div id="prestart" class="overlay" hidden>
+  <div class="panel">
+    <h1 id="ps-title">Interview</h1>
+    <ul id="ps-checks"></ul>
+    <p class="reminder">Speakerphone on. Headphones off. Consent obtained.</p>
+    <button id="btn-start" class="start">Start recording <kbd>Enter</kbd></button>
+  </div>
+</div>
+
+<div id="ended" class="overlay" hidden>
+  <div class="panel">
+    <h1 id="end-title">Finalizing</h1>
+    <p id="end-detail" class="muted"></p>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+export type Level = 'high' | 'medium' | 'low'
+export type Stance = 'supports' | 'contradicts' | 'mixed'
+
+export interface Source {
+  url: string
+  title: string
+  quote: string
+}
+
+export interface Rec {
+  id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Hypothesis extends Rec {
+  code: string
+  title: string
+  statement: string
+  kind: 'problem' | 'solution' | 'competing'
+  status: 'open' | 'supported' | 'weakened' | 'rejected' | 'parked'
+  notes: string
+  sort: number
+  history: { at: string; text: string }[]
+}
+
+export interface Organization extends Rec {
+  name: string
+  aliases: string[]
+  domain: string
+  website: string
+  segment: string
+  already_contacted: boolean
+  sources: Source[]
+  notes: string
+}
+
+export interface Score {
+  level: Level
+  reason: string
+}
+
+export interface Person extends Rec {
+  name: string
+  first_name: string
+  organization_id: string
+  role: string
+  email: string
+  email_confidence: string
+  phone: string
+  website: string
+  background: string
+  why_useful: string
+  why_receptive: string
+  segment: string
+  segment_basis: string
+  sources: Source[]
+  researched_on: string
+  time_zone: string
+  stage: string
+  next_action: string
+  next_action_due: string
+  priority: Level
+  scores: Record<string, Score | null>
+  do_not_contact: boolean
+  notes: string
+}
+
+export interface Evidence extends Rec {
+  call_id: string
+  person_id: string
+  organization_id: string
+  at_seconds: number | null
+  quote: string
+  note: string
+  type: string
+  basis: string
+  source: string
+  review_status: 'proposed' | 'accepted' | 'rejected'
+  links: { hypothesis_id: string; stance: Stance }[]
+}
+
+export interface Tally {
+  supports: { strong: number; weak: number }
+  contradicts: { strong: number; weak: number }
+  mixed: { strong: number; weak: number }
+  organizations: number
+}
+
+export interface ProjectMeta {
+  name: string
+  slug: string
+  path: string
+  coach: { activity: string; keyterms: string[] }
+  email: EmailSettings
+  sending: {
+    daily_cap: number
+    window_start: string
+    window_end: string
+    weekdays: number[]
+    min_gap_minutes: number
+    max_gap_minutes: number
+  }
+  banned_phrases: string[]
+  segments: string[]
+}
+
+export interface ProjectSummary {
+  slug: string
+  name: string
+  path: string
+}
+
+export interface Overview {
+  stages: Record<string, number>
+  people: number
+  organizations: number
+  evidence_to_review: number
+  evidence_accepted: number
+  drafts_to_review: number
+  sent: number
+  prospects_to_review: number
+  leads_open: Person[]
+  interviews: unknown[]
+}
+
+export interface EmailSettings {
+  sender_name: string
+  footer_enabled: boolean
+  postal_address: string
+  opt_out_line: string
+  subject_template: string
+  body_template: string
+  follow_up_template: string
+  final_template: string
+  max_reading_seconds: number
+}
+
+export interface Check {
+  name: string
+  level: 'pass' | 'warn' | 'fail'
+  detail: string
+}
+
+export interface Message extends Rec {
+  person_id: string
+  wave_id: string
+  kind: 'initial' | 'follow_up' | 'final' | 'reply'
+  subject: string
+  body: string
+  status: 'draft' | 'approved' | 'scheduled' | 'sent' | 'failed' | 'skipped'
+  checks: Check[]
+}
+
+export interface QueueItem extends Message {
+  person: Person | null
+  organization: Organization | null
+}
+
+export interface Interview extends Rec {
+  person_id: string
+  proposed_times: string[]
+  time_zone: string
+  confirmed_time: string
+  method: '' | 'phone' | 'video' | 'in_person'
+  details: string
+  completed: boolean
+  call_id: string
+  outcome: string
+}
+
+export interface SegmentCounts {
+  contacted: number
+  replied: number
+  positive: number
+  completed: number
+}
+
+export interface OutreachMetrics {
+  emails_sent: number
+  drafts: number
+  approved_waiting: number
+  contacted: number
+  replied: number
+  positive: number
+  confirmed: number
+  completed: number
+  completed_organizations: string[]
+  by_segment: Record<string, SegmentCounts>
+  follow_ups_due: { id: string; name: string; next_action: string; due: string }[]
+  segments_completed: string[]
+}
+
+export interface ImportRow {
+  line: number
+  values: Record<string, string>
+  action: 'create' | 'skip'
+  issues: string[]
+}
+
+export interface ImportPreview {
+  headers: string[]
+  mapping: Record<string, string>
+  targets: string[]
+  rows: ImportRow[]
+}

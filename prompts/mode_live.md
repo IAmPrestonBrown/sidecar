@@ -1,0 +1,1 @@
+MODE: LIVE UPDATE. Trigger: {trigger}. {activity} Decide whether to intervene right now. Return at most 2 cards, highest priority first, and at most 3 new evidence items. Return intervene=false with no cards when silence is better. Call coach_update.

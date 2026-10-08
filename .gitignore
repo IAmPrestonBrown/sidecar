@@ -1,0 +1,40 @@
+# Secrets. Real keys belong in ~/.config/sidecar/.env.
+.env
+.env.*
+!.env.example
+
+# Personal settings. Real settings belong in ~/.config/sidecar/.
+config.toml
+config.*.toml
+!config.example.toml
+
+# Call recordings and coach session output. These belong in
+# ~/Documents/Sidecar/recordings, never in the repository.
+interviews/
+recordings/
+*.wav
+*.pcm
+*.mp3
+*.m4a
+*.aiff
+coach.jsonl
+transcript_live.jsonl
+transcript_live.md
+transcript_deepgram.json
+marks.jsonl
+asks.jsonl
+evidence.jsonl
+events.jsonl
+session.log
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# App build output (app/.gitignore covers node_modules and dist)
+app/src-tauri/target/
+app/src-tauri/gen/
+
+.DS_Store

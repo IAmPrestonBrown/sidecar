@@ -1,0 +1,1 @@
+MODE: ASK NEXT. The interviewer pressed ASK NEXT at {now}. Return exactly one question with the highest expected information gain right now, given what has and has not been covered. Prefer threads the interviewee opened that were not pulled on. The rules for the ask field apply. Call ask_next.
